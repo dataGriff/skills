@@ -4,13 +4,15 @@ description: >-
   Author, edit, and review data contracts in the Open Data Contract Standard
   (ODCS) v3.1.0 — the Bitol / Linux Foundation YAML standard. Covers
   fundamentals, schema objects/properties, logical types, data quality rules
-  (library metrics, SQL, custom engines), servers, SLAs, team, roles, and
-  foreign-key relationships via references. Use when the user wants to create
-  or modify a data contract, mentions ODCS, Bitol, odcs.yaml, or
-  datacontract.yaml content, asks to add quality checks / SLAs / schema
-  definitions to a contract, to review a contract for completeness, or to
-  model a dataset, table, or data product as a contract — even if they just
-  say "write a data contract for X".
+  (library metrics, SQL, custom engines), servers, SLAs, team, roles,
+  foreign-key relationships via references, lower_snake_case naming
+  conventions, and enforcing org style rules with Spectral rulesets. Use
+  when the user wants to create or modify a data contract, mentions ODCS,
+  Bitol, odcs.yaml, or datacontract.yaml content, asks to add quality
+  checks / SLAs / schema definitions to a contract, to review a contract
+  for completeness or convention compliance, to lint contracts with
+  Spectral, or to model a dataset, table, or data product as a contract —
+  even if they just say "write a data contract for X".
 ---
 
 # Authoring ODCS data contracts
@@ -66,8 +68,11 @@ foreign-key `relationships` — details in the schema reference below.
 2. **Write fundamentals** — id, name, version, status, domain, tenant,
    description (purpose/limitations/usage), tags.
 3. **Model the schema.** One entry per object; properties with `logicalType`
-   (business view) and `physicalType` (implementation view). Add `id` fields
-   to elements you will reference (FKs, SLA elements). Read
+   (business view) and `physicalType` (implementation view). Name objects
+   and properties in **lower_snake_case** — names flow into SQL, dbt, and
+   Avro via exporters, and snake_case survives every target (human-friendly
+   casing belongs in `businessName`). Add `id` fields to elements you will
+   reference (FKs, SLA elements). Read
    [references/schema.md](references/schema.md) for the full field set,
    logical type options, arrays, and relationships.
 4. **Attach quality rules** where consumers need guarantees, at object or
@@ -84,6 +89,13 @@ foreign-key `relationships` — details in the schema reference below.
 6. **Validate.** `datacontract lint <file> --all-errors` against the ODCS
    JSON Schema. Fix errors top-to-bottom; the standard takes precedence over
    the JSON Schema where they disagree.
+7. **Enforce conventions with Spectral.** Schema validation accepts
+   `orderId` and a missing owner; org style rules (snake_case names,
+   required descriptions/team/SLAs) need a Spectral ruleset — start from
+   [assets/spectral-odcs.yaml](assets/spectral-odcs.yaml) and run both
+   linters in CI. Read
+   [references/style-and-governance.md](references/style-and-governance.md)
+   when setting this up or writing new rules.
 
 ## Authoring judgment
 
@@ -116,6 +128,10 @@ foreign-key `relationships` — details in the schema reference below.
 - [references/servers-and-metadata.md](references/servers-and-metadata.md) —
   server types and their fields, team, roles, support channels, pricing,
   custom properties, authoritative definitions.
+- [references/style-and-governance.md](references/style-and-governance.md) —
+  lower_snake_case naming conventions and enforcing org rules with a
+  Spectral ruleset (starter ruleset in assets/, custom rule patterns, CI
+  wiring).
 - [assets/template.odcs.yaml](assets/template.odcs.yaml) — a complete,
   lint-clean starter contract to copy.
 - Authoritative spec: https://github.com/bitol-io/open-data-contract-standard

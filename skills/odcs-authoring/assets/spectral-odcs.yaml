@@ -1,0 +1,84 @@
+# Spectral ruleset for ODCS v3.1.0 data contracts — org-convention linting
+# on top of `datacontract lint` (which checks the JSON Schema, not style).
+#
+# Run:  spectral lint --ruleset spectral-odcs.yaml "contracts/**/*.odcs.yaml"
+# Adapt severities and rules to your organization's standards.
+rules:
+  odcs-api-version:
+    description: Contracts must target the current standard version.
+    severity: error
+    given: $.apiVersion
+    then:
+      function: pattern
+      functionOptions:
+        match: ^v3\.\d+\.\d+$
+
+  object-name-snake-case:
+    description: Schema object names must be lower_snake_case.
+    message: "Object name '{{value}}' must be lower_snake_case."
+    severity: error
+    given: $.schema[*].name
+    then:
+      function: casing
+      functionOptions:
+        type: snake
+
+  property-name-snake-case:
+    description: Property names (including nested) must be lower_snake_case.
+    message: "Property name '{{value}}' must be lower_snake_case."
+    severity: error
+    given: $.schema[*]..properties[*].name
+    then:
+      function: casing
+      functionOptions:
+        type: snake
+
+  object-must-have-description:
+    description: Every schema object needs a description for consumers.
+    severity: error
+    given: $.schema[*]
+    then:
+      field: description
+      function: truthy
+
+  property-must-have-description:
+    description: Every property needs a description for consumers.
+    severity: warn
+    given: $.schema[*]..properties[*]
+    then:
+      field: description
+      function: truthy
+
+  contract-must-have-owner:
+    description: Contracts must declare a team so consumers know who to call.
+    severity: error
+    given: $
+    then:
+      field: team
+      function: truthy
+
+  contract-must-have-slas:
+    description: Contracts should state SLAs (latency, retention, ...).
+    severity: warn
+    given: $
+    then:
+      field: slaProperties
+      function: truthy
+
+  status-valid-values:
+    description: Status must be one of the recommended lifecycle values.
+    severity: error
+    given: $.status
+    then:
+      function: enumeration
+      functionOptions:
+        values: [proposed, draft, active, deprecated, retired]
+
+  no-secrets-in-servers:
+    description: Credentials never belong in a contract; use env vars at test time.
+    message: "Server field '{{property}}' looks like a credential."
+    severity: error
+    given: $.servers[*]
+    then:
+      field: password
+      function: undefined
