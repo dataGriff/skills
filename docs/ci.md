@@ -33,6 +33,22 @@ Add it to the `ci` task chain in `Taskfile.yml`. The GitHub workflow
 own, because anything only CI runs is something contributors can't run
 locally.
 
+## Eval evidence on pull requests
+
+Skill changes carry their eval evidence in the diff
+(`evals/latest-results.md`, see [skills.md](skills.md)) — but reviewers
+read the PR, not the file tree. Two mechanisms keep the summary visible in
+the PR itself:
+
+- `.github/pull_request_template.md` asks the author to paste the results
+  table (or say why no re-run was needed).
+- The `eval-summary` CI job runs `task pr:eval-summary` on every PR and
+  upserts the output as a sticky comment: each changed skill's
+  `latest-results.md`, with a ⚠️ when the skill changed without a refreshed
+  results file or defines no evals. The summarising logic lives in
+  `scripts/pr_eval_summary.py` behind the task (runnable locally); the
+  workflow step only posts the output — delivery glue, not check logic.
+
 ## Hooks
 
 Versioned in `.githooks/`, activated by `task setup` (sets

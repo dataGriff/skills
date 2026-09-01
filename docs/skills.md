@@ -68,7 +68,10 @@ scores both arms so you can compare pass rate, and the run metadata gives
 time and cost per task. The runner also refreshes the skill's
 `evals/latest-results.md` — a small **committed** summary table, so a PR
 that touches a skill carries its eval evidence in the diff by default:
-run the evals, commit the refreshed results file with the change. Evals
+run the evals, commit the refreshed results file with the change. The PR
+template asks for the results table in the description, and CI posts each
+changed skill's `latest-results.md` as a sticky PR comment — flagging skills
+changed without refreshed results (see [ci.md](ci.md)). Evals
 cost tokens, take minutes, and are non-deterministic, so they are
 deliberately **not** part of `task ci`. Run them when:
 

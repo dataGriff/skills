@@ -40,6 +40,12 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/eval_skills.py {{.NAME}}"
 
+  pr:eval-summary:
+    desc: "Markdown eval-evidence summary for skills changed vs BASE (default origin/main): task pr:eval-summary [BASE=...]"
+    silent: true
+    cmds:
+      - "{{.PYTHON}} scripts/pr_eval_summary.py {{.BASE}}"
+
   check:
     desc: Run all checks (skill best practices + context size)
     cmds:
