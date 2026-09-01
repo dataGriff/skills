@@ -60,6 +60,17 @@ def E(text, passed, evidence):
     return {"text": text, "passed": bool(passed), "evidence": str(evidence)[:500]}
 
 
+def signature(steps):
+    """Steps with values stripped — two scenarios sharing one are the same
+    shape and belong in a Scenario Outline."""
+    sig = []
+    for line in steps:
+        s = re.sub(r'"[^"]*"', '""', line)
+        s = re.sub(r"£?\d+(\.\d+)?", "N", s)
+        sig.append(s.lower())
+    return tuple(sig)
+
+
 def grade_structure(ex, text, min_scenarios):
     blocks = scenarios(text)
     ex.append(E(f"One Feature, >= {min_scenarios} scenarios",
@@ -75,6 +86,15 @@ def grade_structure(ex, text, min_scenarios):
                 not no_then, f"missing={no_then}"))
     ui = sorted(set(m.group(0).strip() for m in UI_WORDS.finditer(text)))
     ex.append(E("Declarative: no UI mechanics in steps", not ui, f"found={ui}"))
+    seen, dups = {}, []
+    for n, s in blocks:
+        key = signature(s)
+        if key in seen:
+            dups.append(f"{seen[key]} ~ {n}")
+        else:
+            seen[key] = n
+    ex.append(E("No two scenarios test the same shape with different values "
+                "(that's a Scenario Outline)", not dups, f"dups={dups}"))
     return blocks
 
 
@@ -89,6 +109,16 @@ def grade_story_to_feature(out):
     covered = [w for w in ("deliver", "ship", "discount") if w in low]
     ex.append(E("Covers delivery-fee, award-on-shipping and discount criteria",
                 len(covered) == 3, f"covered={covered}"))
+    discount_col = any("discount" in l and l.strip().startswith("|")
+                       for l in low.splitlines())
+    discount_step = re.search(r"discount of £?\d", low)
+    ex.append(E("Exercises discount arithmetic with an explicit amount, not "
+                "just the phrase 'after discounts'",
+                discount_col or bool(discount_step),
+                f"column={discount_col} step={bool(discount_step)}"))
+    n_rules = len(re.findall(r"^\s*Rule:", text, re.M))
+    ex.append(E("Business rules made explicit with Rule: blocks "
+                "(the story states several)", n_rules >= 2, f"rules={n_rules}"))
     ex.append(E("Concrete example data (real amounts, not only placeholders)",
                 bool(re.search(r"(Given|When|Then|And|But)[^<\n]*\d", text)),
                 "digit in a step outside <placeholders>"))
@@ -107,6 +137,12 @@ def grade_review_rewrite(out):
                 blocks and not bad_names, f"bad={bad_names}"))
     ex.append(E("No technical setup (database wiping) in steps",
                 "database" not in text.lower(), "grep database"))
+    views = [n for n, s in blocks
+             if any(l.startswith("When ") and re.search(r"histor|orders|view", l, re.I)
+                    for l in s)]
+    ex.append(E("Order-history behaviour survives as its own scenario, not "
+                "dropped or folded into another's Then", bool(views),
+                f"scenarios={views}"))
     review = out / "review.md"
     r = review.read_text(encoding="utf-8").lower() if review.exists() else ""
     smells = {
