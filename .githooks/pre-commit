@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Pre-commit hook: delegates to the Taskfile so hooks and CI share one
+# definition of "the checks". Install via `task hooks:install` (or `task setup`).
+set -euo pipefail
+
+if ! command -v task >/dev/null 2>&1; then
+  echo "pre-commit: 'task' not found. Install tools with 'mise install' (see README)." >&2
+  exit 1
+fi
+
+exec task pre-commit

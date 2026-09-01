@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Pre-push hook: runs the same `task ci` entrypoint GitHub Actions uses,
+# so a push that passes locally passes remotely.
+set -euo pipefail
+
+if ! command -v task >/dev/null 2>&1; then
+  echo "pre-push: 'task' not found. Install tools with 'mise install' (see README)." >&2
+  exit 1
+fi
+
+exec task pre-push

@@ -1,0 +1,67 @@
+# All runnable scripts for this repo live here.
+# Agents and humans: run `task --list` first and reuse what exists —
+# only add a new task when nothing here covers the need.
+# Conventions for adding tasks: docs/tasks.md
+version: "3"
+
+vars:
+  PYTHON: python3
+
+tasks:
+  default:
+    desc: List all available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  setup:
+    desc: One-time setup - install git hooks
+    cmds:
+      - task: hooks:install
+      - echo "Setup complete. Run 'task --list' to see available commands."
+
+  hooks:install:
+    desc: Point git at the versioned hooks in .githooks/
+    cmds:
+      - git config core.hooksPath .githooks
+      - chmod +x .githooks/*
+    status:
+      - test "$(git config core.hooksPath)" = ".githooks"
+
+  new:skill:
+    desc: "Scaffold a new skill: task new:skill NAME=my-skill"
+    requires:
+      vars: [NAME]
+    cmds:
+      - "{{.PYTHON}} scripts/new_skill.py {{.NAME}}"
+
+  check:
+    desc: Run all checks (skill best practices + context size)
+    cmds:
+      - task: check:skills
+      - task: check:context
+
+  check:skills:
+    desc: Validate every skill against skill best practices
+    cmds:
+      - "{{.PYTHON}} scripts/check_skills.py"
+
+  check:context:
+    desc: Check context-size budgets on routing docs and skills
+    cmds:
+      - "{{.PYTHON}} scripts/check_context.py"
+
+  pre-commit:
+    desc: Fast checks run by the pre-commit git hook
+    cmds:
+      - task: check
+
+  pre-push:
+    desc: Full checks run by the pre-push git hook
+    cmds:
+      - task: ci
+
+  ci:
+    desc: Everything CI runs - keep the GitHub workflow a thin wrapper over this
+    cmds:
+      - task: check

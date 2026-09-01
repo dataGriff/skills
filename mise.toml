@@ -1,0 +1,6 @@
+[tools]
+task = "3.44"
+python = "3.12"
+
+[settings]
+experimental = false
