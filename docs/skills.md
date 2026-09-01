@@ -51,3 +51,31 @@ different context cost:
 `task check:context` enforces the size budgets; both run in every commit
 hook and in CI. Fix errors by moving content deeper (into `references/`),
 not by deleting guidance the skill needs.
+
+## Evals (effectiveness, not structure)
+
+Structural checks can't tell whether a skill actually helps. For that, give
+a skill an `evals/` directory (`evals.json` with realistic prompts,
+optional `fixtures/` and a `grade.py`) and run:
+
+```bash
+task eval:skills NAME=my-skill   # or omit NAME for all skills with evals
+```
+
+Each prompt runs twice through headless `claude -p` — once following the
+skill, once without — into the gitignored `.evals/` directory; `grade.py`
+scores both arms so you can compare pass rate, and the run metadata gives
+time and cost per task. The runner also refreshes the skill's
+`evals/latest-results.md` — a small **committed** summary table, so a PR
+that touches a skill carries its eval evidence in the diff by default:
+run the evals, commit the refreshed results file with the change. Evals
+cost tokens, take minutes, and are non-deterministic, so they are
+deliberately **not** part of `task ci`. Run them when:
+
+- **creating a skill** — to prove it beats the no-skill baseline at all;
+- **meaningfully editing one** — changed workflow, rewritten guidance, new
+  references (typo fixes don't need a re-run);
+- **the world changes underneath it** — a new version of the tool or spec
+  the skill wraps (pair with re-verifying references against the live tool);
+- **triggering feels off** — though description/trigger tuning needs its
+  own eval type (should/shouldn't-trigger prompts), not these output evals.

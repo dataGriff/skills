@@ -1,0 +1,21 @@
+{
+  "skill_name": "datacontract-cli",
+  "evals": [
+    {
+      "id": 0,
+      "name": "snowflake-ci-guidance",
+      "prompt": "we have data contracts in contracts/*.odcs.yaml for our snowflake warehouse and want to check them automatically in github actions on every PR - both that the yaml is valid and that prod data actually matches the contracts. we auth to snowflake with key-pair auth (service account username + private key). write the github actions workflow and tell me exactly which env vars / repo secrets I need to configure. save the workflow as ci.yml and the explanation as setup.md",
+      "expected_output": "Workflow lints and tests contracts with real datacontract-cli commands and the CLI's actual Snowflake key-pair env vars",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "ddl-to-contract-pipeline",
+      "prompt": "here's the DDL for our shipments table (shipments.sql, in the current directory). turn it into a data contract yaml, then run the commands to validate it, generate dbt models from it, and produce an html doc page. save everything in the current directory: the contract (shipments.odcs.yaml), the dbt output (dbt-models.yaml), the html (shipments.html), plus a commands.md with the exact commands you used. the datacontract cli is installed.",
+      "expected_output": "Working import->lint->export pipeline with all four artifacts produced via correct CLI syntax",
+      "files": [
+        "shipments.sql"
+      ]
+    }
+  ]
+}

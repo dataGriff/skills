@@ -1,0 +1,21 @@
+{
+  "skill_name": "odcs-authoring",
+  "evals": [
+    {
+      "id": 0,
+      "name": "author-orders-contract",
+      "prompt": "We're rolling out data contracts for our analytics postgres db. Can you write me a data contract for the orders table in our warehouse? It's in postgres (host analytics-db.corp.example.com, port 5432, database warehouse, schema mart_sales). Columns: order_id uuid primary key, customer_id uuid not null, order_status text (one of pending/paid/shipped/cancelled/refunded), total_amount numeric(12,2) not null, currency char(3), created_at timestamptz not null. Data lands hourly and consumers need it fresh within 2 hours; retain 5 years. Owning team is sales-analytics, owner priya@example.com, slack channel #sales-data. Use the open data contract standard, latest version. Save it as orders.odcs.yaml",
+      "expected_output": "Lint-clean ODCS v3.1.0 contract: snake_case schema, enum/null quality rules, latency+retention SLAs, team and support sections",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-legacy-contract",
+      "prompt": "One of our teams wrote this data contract a while back (legacy-customer-contract.yaml, in the current directory). We're standardising on ODCS v3.1.0 and our conventions: snake_case names everywhere, no deprecated fields, no secrets in contracts. Review it, write a review.md listing what's wrong, and produce a fixed version saved as customer-profiles.odcs.yaml.",
+      "expected_output": "Review catching deprecated dataProduct/rule keys, mixed-case names, the plaintext password, and the deprecated team list form; fixed lint-clean v3.1.0 contract",
+      "files": [
+        "legacy-customer-contract.yaml"
+      ]
+    }
+  ]
+}

@@ -36,5 +36,6 @@ Only when nothing existing covers the need:
 
 - `setup` → `hooks:install`
 - `check` → `check:skills` + `check:context`
+- `eval:skills` → with/without-skill effectiveness evals (on demand, not CI)
 - `pre-commit` / `pre-push` → hook entrypoints
 - `ci` → everything GitHub Actions runs

@@ -1,0 +1,104 @@
+# ODCS v3.1.0 starter contract — copy, rename, and adapt.
+# Validate with: datacontract lint <file> --all-errors
+apiVersion: v3.1.0
+kind: DataContract
+
+id: 00000000-0000-0000-0000-000000000000 # generate a UUID
+name: orders_v1
+version: 0.1.0 # contract version (semver) — bump major on breaking changes
+status: draft # proposed | draft | active | deprecated | retired
+domain: sales
+tenant: ExampleCorp
+
+description:
+  purpose: Curated order data for analytics and finance reporting.
+  limitations: Not for operational/transactional use. PII columns are restricted.
+  usage: Refreshed daily; join on order_id.
+
+tags: [orders, sales]
+
+schema:
+  - id: orders_obj
+    name: orders
+    logicalType: object
+    physicalType: table
+    physicalName: orders_v1
+    description: One row per customer order.
+    dataGranularityDescription: One row per order_id.
+    properties:
+      - id: order_id_prop
+        name: order_id
+        businessName: order identifier
+        description: Unique identifier of the order.
+        logicalType: string
+        physicalType: uuid
+        required: true
+        unique: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        classification: internal
+        examples: [f47ac10b-58cc-4372-a567-0e02b2c3d479]
+        quality:
+          - id: order_id_no_nulls
+            metric: nullValues
+            mustBe: 0
+            description: order_id must never be null.
+      - id: order_status_prop
+        name: order_status
+        description: Current lifecycle state of the order.
+        logicalType: string
+        physicalType: varchar(20)
+        required: true
+        classification: internal
+        quality:
+          - id: order_status_valid
+            metric: invalidValues
+            arguments:
+              validValues: [placed, paid, shipped, delivered, cancelled]
+            mustBe: 0
+      - id: order_timestamp_prop
+        name: order_timestamp
+        description: When the order was placed (UTC).
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        logicalTypeOptions:
+          format: yyyy-MM-ddTHH:mm:ssZ
+    quality:
+      - id: orders_row_count
+        metric: rowCount
+        mustBeGreaterThan: 0
+        description: Table must not be empty.
+
+servers:
+  - server: production
+    type: postgres
+    environment: prod
+    host: db.example.com
+    port: 5432
+    database: analytics
+    schema: dp_orders_v1
+
+slaProperties:
+  - id: freshness
+    property: latency
+    value: 24
+    unit: h
+    element: orders.order_timestamp
+  - id: retention
+    property: retention
+    value: 3
+    unit: y
+
+team:
+  name: Orders Squad
+  members:
+    - username: owner@example.com
+      role: owner
+      dateIn: "2025-01-01"
+
+support:
+  - channel: "#orders-data"
+    tool: slack
+    scope: interactive
+    url: https://example.slack.com/archives/C0000000000
