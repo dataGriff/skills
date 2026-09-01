@@ -15,7 +15,7 @@ tasks:
       - task --list
 
   setup:
-    desc: One-time setup - install tools and git hooks
+    desc: One-time setup - install git hooks
     cmds:
       - task: hooks:install
       - echo "Setup complete. Run 'task --list' to see available commands."
