@@ -1,0 +1,19 @@
+{
+  "skill_name": "api-mocking-microcks",
+  "evals": [
+    {
+      "id": 0,
+      "name": "mock-rest-order-api",
+      "prompt": "Our frontend team needs to build against the Order API before the backend exists, so we want live mocks they can curl. The API: GET /orders/{orderId} returns an order (id, status, total). Orders abc123 (status shipped, total 45.50) and def456 (status pending, total 12.00) must be mockable, and ANY other order id should get a 404 with an error message. POST /orders takes {productId, quantity} and returns 201 with the created order: a freshly generated id, a createdAt timestamp, and the productId and quantity echoed back from whatever the caller sent. Write an OpenAPI spec as order-api.yaml (title exactly 'Order API', version '1.0') set up so Microcks serves exactly those mock behaviors, plus a short MOCKING.md telling the team how to run the mocks locally with docker and example curl commands against the mock endpoints.",
+      "expected_output": "OpenAPI spec with paired named examples, a FALLBACK dispatcher for the 404-on-anything-else, templated POST response (generated id, echoed body fields), and docs with the correct /rest/{name}/{version} mock URLs",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "mock-async-signup-events",
+      "prompt": "Our notifications team is building a consumer for user signup events but the producer service doesn't exist yet. They need live sample traffic locally WITHOUT standing up Kafka or any broker. Events flow on channel user/signedup and look like {\"id\": <unique id>, \"email\": <email>, \"tier\": \"free\"|\"pro\"}. Give them two different named sample users, make the id different on every published message (freshly generated each time, not hard-coded), and have messages published every 5 seconds. Write an AsyncAPI spec as user-signedup-api.yaml (title exactly 'User Signedup API', version '0.1.0') that Microcks can mock that way, plus a short EVENTS.md explaining how to run it locally with docker and how to see the live event traffic.",
+      "expected_output": "AsyncAPI spec with named message examples on the emitting operation, {{ guid() }}-style templated ids, x-microcks-operation frequency 5, and docs pointing at the broker-free WebSocket mock endpoint",
+      "files": []
+    }
+  ]
+}
