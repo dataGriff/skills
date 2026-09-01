@@ -5,13 +5,13 @@
 # Adapt severities and rules to your organization's standards.
 rules:
   odcs-api-version:
-    description: Contracts must target the current standard version.
+    description: Contracts must target ODCS v3.1.0.
     severity: error
     given: $.apiVersion
     then:
       function: pattern
       functionOptions:
-        match: ^v3\.\d+\.\d+$
+        match: ^v3\.1\.0$
 
   object-name-snake-case:
     description: Schema object names must be lower_snake_case.

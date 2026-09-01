@@ -39,11 +39,10 @@ status: active            # proposed | draft | active | deprecated | retired
 domain: sales
 description: {purpose, limitations, usage}
 tags: [finance]
-schema: [...]             # the structure of the data (objects + properties)
-quality: [...]            # usually nested inside schema elements
+schema: [...]              # objects + properties; quality rules nest inside each
 servers: [...]            # where the data physically lives
 slaProperties: [...]      # service-level agreements
-team: [...]               # people and ownership
+team: {members: [...]}    # people and ownership
 roles: [...]              # access roles for approval workflows
 support: [...]            # channels (slack, email, ...)
 price: {...}              # optional pricing metadata

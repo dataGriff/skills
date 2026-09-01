@@ -34,7 +34,7 @@ starting ruleset. What it enforces (adapt severities to taste):
 
 | Rule | Severity | Checks |
 |------|----------|--------|
-| `odcs-api-version` | error | `apiVersion` matches `v3.x.x` |
+| `odcs-api-version` | error | `apiVersion` is exactly `v3.1.0` |
 | `object-name-snake-case` | error | object names lower_snake_case |
 | `property-name-snake-case` | error | property names (nested too) lower_snake_case |
 | `object-must-have-description` | error | every object described |

@@ -42,7 +42,13 @@ properties:
         arguments:
           pattern: '^ORD-[0-9]{8}$'
         mustBe: 0
-schema-level:
+```
+
+Schema-object-level checks (e.g. `rowCount`) use the same `quality` key,
+attached to the schema object instead of a property:
+
+```yaml
+schema:
   - name: orders
     quality:
       - id: orders_row_count
