@@ -65,8 +65,12 @@ task eval:skills NAME=my-skill   # or omit NAME for all skills with evals
 Each prompt runs twice through headless `claude -p` — once following the
 skill, once without — into the gitignored `.evals/` directory; `grade.py`
 scores both arms so you can compare pass rate, and the run metadata gives
-time per task. Evals cost tokens, take minutes, and are non-deterministic,
-so they are deliberately **not** part of `task ci`. Run them when:
+time and cost per task. The runner also refreshes the skill's
+`evals/latest-results.md` — a small **committed** summary table, so a PR
+that touches a skill carries its eval evidence in the diff by default:
+run the evals, commit the refreshed results file with the change. Evals
+cost tokens, take minutes, and are non-deterministic, so they are
+deliberately **not** part of `task ci`. Run them when:
 
 - **creating a skill** — to prove it beats the no-skill baseline at all;
 - **meaningfully editing one** — changed workflow, rewritten guidance, new

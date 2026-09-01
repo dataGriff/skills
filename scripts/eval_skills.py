@@ -49,18 +49,31 @@ standalone task; do not read files under {skills_dir}.
 def run_claude(prompt: str, cwd: Path) -> dict:
     start = time.time()
     result = subprocess.run(
-        ["claude", "-p", prompt, "--permission-mode", "acceptEdits"],
+        ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
+         "--output-format", "json"],
         cwd=cwd,
         capture_output=True,
         text=True,
         timeout=RUN_TIMEOUT_SECONDS,
     )
-    return {
+    info = {
         "exit_code": result.returncode,
         "duration_seconds": round(time.time() - start, 1),
-        "stdout_tail": result.stdout[-2000:],
         "stderr_tail": result.stderr[-1000:],
     }
+    try:  # headless JSON output carries usage/cost metadata
+        payload = json.loads(result.stdout)
+        info["duration_seconds"] = round(payload.get("duration_ms", 0) / 1000, 1) or info["duration_seconds"]
+        info["num_turns"] = payload.get("num_turns")
+        info["total_cost_usd"] = payload.get("total_cost_usd")
+        usage = payload.get("usage") or {}
+        info["tokens"] = sum(
+            v for k, v in usage.items() if isinstance(v, (int, float)) and "tokens" in k
+        ) or None
+        info["result_tail"] = str(payload.get("result", ""))[-1500:]
+    except (json.JSONDecodeError, TypeError):
+        info["stdout_tail"] = result.stdout[-2000:]
+    return info
 
 
 def run_skill_evals(skill_dir: Path) -> Path | None:
@@ -94,7 +107,42 @@ def run_skill_evals(skill_dir: Path) -> Path | None:
         subprocess.run([sys.executable, str(grader), str(iteration)], check=False)
     else:
         print(f"  no grader — compare outputs manually under {iteration}")
+    write_results_summary(skill_dir, iteration, stamp)
     return iteration
+
+
+def write_results_summary(skill_dir: Path, iteration: Path, stamp: str) -> None:
+    """Write evals/latest-results.md — committed, so eval results show up in
+    the pull request diff alongside the skill change that prompted the run."""
+    lines = [
+        f"# Eval results: {skill_dir.name}",
+        "",
+        f"Last run: {stamp} UTC via `task eval:skills NAME={skill_dir.name}` "
+        "(commit this file with the skill change so the PR carries the evidence).",
+        "",
+        "| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |",
+        "|------|-----------|----------|-------------------|-------------------|",
+    ]
+    for eval_dir in sorted(iteration.glob("eval-*")):
+        cells = {}
+        for arm in ("with_skill", "without_skill"):
+            g, r = eval_dir / arm / "grading.json", eval_dir / arm / "run.json"
+            score, secs, cost = "?", "?", "?"
+            if g.is_file():
+                s = json.loads(g.read_text()).get("summary", {})
+                score = f"{s.get('passed', '?')}/{s.get('total', '?')}"
+            if r.is_file():
+                run = json.loads(r.read_text())
+                secs = f"{run.get('duration_seconds', '?')}s"
+                usd = run.get("total_cost_usd")
+                cost = f"${usd:.2f}" if isinstance(usd, (int, float)) else "?"
+            cells[arm] = (score, secs, cost)
+        w, b = cells.get("with_skill", ("?",) * 3), cells.get("without_skill", ("?",) * 3)
+        name = eval_dir.name.split("-", 2)[-1]
+        lines.append(f"| {name} | {w[0]} | {b[0]} | {w[1]} / {b[1]} | {w[2]} / {b[2]} |")
+    lines += ["", f"Full outputs (gitignored): `.evals/{skill_dir.name}/{stamp}/`.", ""]
+    (skill_dir / "evals" / "latest-results.md").write_text("\n".join(lines), encoding="utf-8")
+    print(f"  summary → {skill_dir.relative_to(REPO_ROOT)}/evals/latest-results.md")
 
 
 def main() -> int:
