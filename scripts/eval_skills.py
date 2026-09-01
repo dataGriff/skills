@@ -93,8 +93,18 @@ def run_skill_evals(skill_dir: Path) -> Path | None:
             outputs.mkdir(parents=True, exist_ok=True)
             for fixture in ev.get("files", []):
                 shutil.copy(fixtures / fixture, outputs / Path(fixture).name)
+            # Eval sessions may be sandboxed to their working directory (e.g.
+            # on remote runners), so the with_skill arm gets a local copy of
+            # the skill rather than a path it may not be allowed to read.
+            # evals/ is excluded so the arm can't see its own grader.
+            eval_skill_dir = outputs / ".skill"
+            if arm == "with_skill":
+                shutil.copytree(
+                    skill_dir, eval_skill_dir, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("evals"),
+                )
             prompt = template.format(
-                skill_dir=skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
+                skill_dir=eval_skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
             info = run_claude(prompt, outputs)
