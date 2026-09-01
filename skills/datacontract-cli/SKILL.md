@@ -24,7 +24,7 @@ v2.2.x) — a `.odcs.yaml` file is used directly, no conversion needed. As of
 ## Install
 
 ```bash
-uv tool install --python python3.11 --upgrade 'datacontract-cli[all]'   # preferred
+uv tool install --python python3.12 --upgrade 'datacontract-cli[all]'   # preferred
 pip install 'datacontract-cli[all]'                                     # or pip / pipx
 docker run --rm -v "${PWD}:/home/datacontract" datacontract/cli:latest  # or docker
 ```
