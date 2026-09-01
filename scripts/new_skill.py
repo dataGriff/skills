@@ -5,8 +5,7 @@ Usage (via the Taskfile — the canonical entrypoint):
     task new:skill NAME=my-skill
 
 Creates skills/<name>/SKILL.md with valid frontmatter plus an empty
-references/ directory, ready to pass `task check`after the description
-placeholders are filled in.
+references/ directory, ready to pass `task check` as generated.
 """
 
 from __future__ import annotations
