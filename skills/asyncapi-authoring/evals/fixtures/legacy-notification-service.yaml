@@ -1,0 +1,49 @@
+# Legacy AsyncAPI 2.6 document with planted defects for the review eval:
+#   1. still on AsyncAPI 2.6.0 (needs upgrade to 3.1.0)
+#   2. credentials embedded in the server url (svc_notify:hunter2)
+#   3. v2 publish/subscribe semantics that a naive migration inverts:
+#      publish on user/signedup   -> this app RECEIVES (action: receive)
+#      subscribe on .../sent      -> this app SENDS    (action: send)
+#   4. v2-only constructs: server url, parameter schema, operationId field
+#   5. no owner contact, no message docs/examples
+asyncapi: '2.6.0'
+info:
+  title: Notification Service
+  version: 0.3.0
+servers:
+  production:
+    url: amqp://svc_notify:hunter2@rabbitmq.internal.acme.dev:5672/prod
+    protocol: amqp
+channels:
+  user/signedup:
+    publish:
+      operationId: userSignedUp
+      message:
+        $ref: '#/components/messages/UserSignedUp'
+  notifications/email/{userId}/sent:
+    parameters:
+      userId:
+        schema:
+          type: string
+    subscribe:
+      operationId: emailSent
+      message:
+        $ref: '#/components/messages/EmailSent'
+components:
+  messages:
+    UserSignedUp:
+      payload:
+        type: object
+        properties:
+          userId:
+            type: string
+          email:
+            type: string
+    EmailSent:
+      payload:
+        type: object
+        properties:
+          userId:
+            type: string
+          emailId:
+            type: string

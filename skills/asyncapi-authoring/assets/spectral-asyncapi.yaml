@@ -1,0 +1,85 @@
+# Starter Spectral governance ruleset for AsyncAPI 3.x documents.
+# Usage: spectral lint --ruleset spectral-asyncapi.yaml asyncapi.yaml
+# extends spectral:asyncapi (built-in rules, v2 + v3 aware); the custom
+# rules below encode org conventions — adapt them to yours.
+extends: spectral:asyncapi
+
+rules:
+  # --- ownership & documentation -------------------------------------
+  org-info-contact:
+    description: Documents must name an owning contact.
+    severity: error
+    given: $.info
+    then:
+      field: contact
+      function: truthy
+  org-server-description:
+    description: Every server says what the environment is for.
+    severity: warn
+    given: $.servers[*]
+    then:
+      field: description
+      function: truthy
+  org-operation-summary:
+    description: Every operation carries a summary.
+    severity: warn
+    given: $.operations[*]
+    then:
+      field: summary
+      function: truthy
+  org-message-examples:
+    description: Reusable messages include at least one example.
+    severity: warn
+    given: $.components.messages[*]
+    then:
+      field: examples
+      function: truthy
+
+  # --- naming conventions --------------------------------------------
+  org-channel-key-camel-case:
+    description: Channel ids (map keys) are camelCase.
+    severity: error
+    given: $.channels
+    then:
+      field: '@key'
+      function: casing
+      functionOptions:
+        type: camel
+  org-operation-key-camel-case:
+    description: Operation ids (map keys) are camelCase.
+    severity: error
+    given: $.operations
+    then:
+      field: '@key'
+      function: casing
+      functionOptions:
+        type: camel
+  org-channel-address-lowercase:
+    description: >-
+      Channel addresses are dot-separated lowercase segments (with optional
+      {parameter} expressions), e.g. orders.placed.v1.
+    severity: error
+    given: $.channels[*].address
+    then:
+      function: pattern
+      functionOptions:
+        match: '^([a-z0-9-]+|\{[A-Za-z0-9_\-]+\})(\.([a-z0-9-]+|\{[A-Za-z0-9_\-]+\}))*$'
+
+  # --- bindings hygiene ----------------------------------------------
+  org-binding-version-pinned:
+    description: Bindings pin bindingVersion instead of relying on latest.
+    severity: warn
+    given: "$..bindings[*]"
+    then:
+      field: bindingVersion
+      function: truthy
+
+  # --- secrets --------------------------------------------------------
+  org-no-credentials-in-host:
+    description: Server hosts must not embed credentials.
+    severity: error
+    given: $.servers[*].host
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: '@'

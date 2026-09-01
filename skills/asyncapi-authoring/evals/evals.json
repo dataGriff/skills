@@ -1,0 +1,21 @@
+{
+  "skill_name": "asyncapi-authoring",
+  "evals": [
+    {
+      "id": 0,
+      "name": "author-inventory-asyncapi",
+      "prompt": "We're documenting our event-driven services with AsyncAPI. Write the AsyncAPI document for our inventory service. It runs against Kafka (prod broker kafka.internal.acme.dev:9092). The service consumes order events from topic orders.placed.v1 (payload: orderId uuid, items array of {sku string, quantity integer >= 1}, placedAt timestamp) in consumer group inventory-service, and publishes stock level events to topic inventory.stock-level.v1 (payload: sku string, warehouse string, quantity integer >= 0, updatedAt timestamp), with the Kafka record keyed by sku. Use the latest AsyncAPI version. Save it as inventory.asyncapi.yaml",
+      "expected_output": "Valid AsyncAPI 3.1.0 document: channels/operations split with correct send/receive directions, Kafka groupId and message key bindings, constrained payload schemas",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-legacy-asyncapi",
+      "prompt": "One of our teams wrote this AsyncAPI file a while back (legacy-notification-service.yaml, in the current directory). We're standardising on the latest AsyncAPI version and our conventions: no secrets in specs, every document has an owning contact, camelCase channel and operation ids. Review it, write a review.md listing what's wrong, and produce an upgraded version saved as notification-service.asyncapi.yaml. Keep the wire-level channel addresses unchanged.",
+      "expected_output": "Review catching the old spec version, the embedded credentials, and the publish/subscribe semantics; upgraded valid 3.1.0 document with correctly inverted send/receive operations and no secrets",
+      "files": [
+        "legacy-notification-service.yaml"
+      ]
+    }
+  ]
+}

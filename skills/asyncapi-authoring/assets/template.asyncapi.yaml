@@ -1,0 +1,192 @@
+# Starter AsyncAPI 3.1.0 document — copy and adapt.
+# Describes ONE application (here: an order service on Kafka).
+# Validate with: asyncapi validate <file>
+asyncapi: 3.1.0
+info:
+  title: Order Service
+  version: 1.0.0
+  description: >
+    Emits an event whenever a customer places an order, and reacts to
+    payment authorizations from the payment service.
+  contact:
+    name: Order Platform Team
+    url: https://wiki.example.com/orders-team
+    email: orders-team@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  tags:
+    - name: e-commerce
+
+defaultContentType: application/json
+
+servers:
+  production:
+    host: kafka.example.com:9092
+    protocol: kafka
+    protocolVersion: '3.2'
+    description: Production cluster. SASL/SCRAM required.
+    security:
+      - $ref: '#/components/securitySchemes/saslScram'
+    bindings:
+      kafka:
+        schemaRegistryUrl: 'https://registry.example.com'
+        schemaRegistryVendor: confluent
+        bindingVersion: 0.5.0
+  staging:
+    host: kafka.staging.example.com:9092
+    protocol: kafka
+    protocolVersion: '3.2'
+    description: Staging cluster, replica of production.
+
+channels:
+  orderPlaced:
+    address: orders.placed.v1
+    description: One event per order successfully placed.
+    messages:
+      orderPlaced:
+        $ref: '#/components/messages/orderPlaced'
+    bindings:
+      kafka:
+        partitions: 12
+        replicas: 3
+        bindingVersion: 0.5.0
+  paymentAuthorized:
+    address: payments.authorized.v1
+    description: Emitted by the payment service when a payment clears.
+    messages:
+      paymentAuthorized:
+        $ref: '#/components/messages/paymentAuthorized'
+
+operations:
+  sendOrderPlaced:
+    action: send
+    channel:
+      $ref: '#/channels/orderPlaced'
+    summary: Publish an event when a customer places an order.
+    description: >-
+      Fired after the order is durably stored; at-least-once delivery,
+      keyed by order id.
+    messages:
+      - $ref: '#/channels/orderPlaced/messages/orderPlaced'
+  receivePaymentAuthorized:
+    action: receive
+    channel:
+      $ref: '#/channels/paymentAuthorized'
+    summary: Mark the order as paid when its payment is authorized.
+    description: >-
+      Consumed in the order-service group; processing is idempotent on
+      paymentId.
+    messages:
+      - $ref: '#/channels/paymentAuthorized/messages/paymentAuthorized'
+    bindings:
+      kafka:
+        groupId:
+          type: string
+          enum: [order-service]
+        bindingVersion: 0.5.0
+
+components:
+  messages:
+    orderPlaced:
+      name: OrderPlaced
+      title: Order placed
+      summary: A customer completed checkout and an order was created.
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/commonHeaders'
+      payload:
+        $ref: '#/components/schemas/orderPlacedPayload'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: The order id — keeps one order's events in order.
+          bindingVersion: 0.5.0
+      examples:
+        - name: simpleOrder
+          summary: A one-line order.
+          payload:
+            orderId: 7f6b6c1e-46fe-4fca-a2e8-3c84f7f21d94
+            customerId: 1c02df63-9c9a-4b40-9c3f-4a3e2a1e8d11
+            totalAmount: 42.5
+            currency: EUR
+            placedAt: '2026-01-31T12:34:56Z'
+    paymentAuthorized:
+      name: PaymentAuthorized
+      title: Payment authorized
+      summary: A payment for an order was authorized by the provider.
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/commonHeaders'
+      payload:
+        $ref: '#/components/schemas/paymentAuthorizedPayload'
+      examples:
+        - name: authorized
+          summary: A payment clearing for the simple order.
+          payload:
+            orderId: 7f6b6c1e-46fe-4fca-a2e8-3c84f7f21d94
+            paymentId: 3b1af0d2-5a44-4a3e-b9e2-95a1c8d7e6f5
+            authorizedAt: '2026-01-31T12:35:10Z'
+
+  schemas:
+    orderPlacedPayload:
+      type: object
+      additionalProperties: false
+      required: [orderId, customerId, totalAmount, currency, placedAt]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: Unique id of the order.
+        customerId:
+          type: string
+          format: uuid
+          description: Id of the customer who placed the order.
+        totalAmount:
+          type: number
+          minimum: 0
+          description: Order total in the given currency.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 currency code.
+        placedAt:
+          type: string
+          format: date-time
+          description: When the order was placed (UTC).
+    paymentAuthorizedPayload:
+      type: object
+      additionalProperties: false
+      required: [orderId, paymentId, authorizedAt]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: The order this payment pays for.
+        paymentId:
+          type: string
+          format: uuid
+          description: Payment provider's id for the authorization.
+        authorizedAt:
+          type: string
+          format: date-time
+          description: When the payment was authorized (UTC).
+
+  messageTraits:
+    commonHeaders:
+      headers:
+        type: object
+        properties:
+          correlationId:
+            type: string
+            format: uuid
+            description: Set at flow start; propagated on every message.
+      correlationId:
+        description: Traces one order flow across services.
+        location: '$message.header#/correlationId'
+
+  securitySchemes:
+    saslScram:
+      type: scramSha512
+      description: Credentials are provisioned per-service by the platform team.
