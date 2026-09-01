@@ -21,10 +21,17 @@ Repo-specific structure rules. For a skills repo:
 
 - every `skills/*/` has a SKILL.md with frontmatter
 - frontmatter has non-empty `name` (lowercase-hyphenated, equals the
-  directory name) and `description` (≤1024 chars, includes explicit trigger
-  context — look for cues like "use when"/"whenever")
+  directory name) and `description` (≤1024 chars; states capability first,
+  then explicit trigger context — cues like "use when"/"whenever")
 - relative paths mentioned in SKILL.md (`references/…`, `scripts/…`) exist
+- no orphaned bundled files: everything under `references/`, `scripts/`,
+  `assets/` is mentioned in SKILL.md or a reference doc (unrouted = invisible)
+- relative markdown links inside reference docs resolve
 - reference files >300 lines carry a table of contents (warning, not error)
+
+Deterministic checks are a floor, not a certification: content freshness
+belongs in a periodic job (re-verify against the live tools), and
+effectiveness/triggering quality only show up in evals.
 
 For other repos, encode whatever the docs promise: every topic doc has a
 route row in docs/index.md, every Taskfile task has a `desc:`, etc. A

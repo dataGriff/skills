@@ -13,9 +13,10 @@ local and remote can never disagree about what gets checked.
 ## The checks
 
 - `task check:skills` (`scripts/check_skills.py`) — skill best practices:
-  frontmatter validity, name/directory match, trigger context in the
-  description, 500-line SKILL.md budget, referenced files exist, ToCs on
-  large references.
+  frontmatter validity, name/directory match, description states capability
+  then trigger context, 500-line SKILL.md budget, referenced files exist,
+  no orphaned bundled files, reference-doc links resolve, ToCs on large
+  references.
 - `task check:context` (`scripts/check_context.py`) — context-size budgets:
   README/AGENTS/docs/index line+token limits, `CLAUDE.md == @AGENTS.md`,
   topic doc size, SKILL.md token budget.
