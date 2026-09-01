@@ -1,0 +1,110 @@
+# Legacy spec as delivered by the contractor. Planted defects (for grading):
+# - OpenAPI 3.0.0 with 3.0-only idioms (nullable: true, boolean exclusiveMinimum)
+# - verb-and-camelCase paths (/getCustomers, /customer_accounts/{id}/updateEmail)
+# - missing operationIds and missing error/default responses
+# - duplicated inline error bodies instead of a shared component
+# - api key passed in the query string, with a live-looking key in an example
+openapi: 3.0.0
+info:
+  title: customers
+  version: "1"
+paths:
+  /getCustomers:
+    get:
+      summary: get all customers
+      parameters:
+        - name: api_key
+          in: query
+          required: true
+          schema:
+            type: string
+          example: sk_live_9f8a7b6c5d4e3f2a1b0c
+        - name: Page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/customer"
+  /customer_accounts/{id}:
+    get:
+      summary: get one customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/customer"
+        "404":
+          description: not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: integer
+  /customer_accounts/{id}/updateEmail:
+    post:
+      summary: change email
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                NewEmail:
+                  type: string
+      responses:
+        "200":
+          description: ok
+        "400":
+          description: bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: integer
+components:
+  schemas:
+    customer:
+      type: object
+      properties:
+        id:
+          type: string
+        Name:
+          type: string
+        email:
+          type: string
+        deletedDate:
+          type: string
+          nullable: true
+        lifetimeValue:
+          type: number
+          minimum: 0
+          exclusiveMinimum: false

@@ -1,0 +1,85 @@
+# Starter Spectral ruleset for org OpenAPI conventions.
+# Usage: spectral lint --ruleset spectral-openapi.yaml openapi.yaml
+# Extends the built-in OpenAPI ruleset (structure + best practices) with the
+# style rules from this skill; adjust severities/patterns to your org.
+extends: ["spectral:oas"]
+rules:
+  # Built-ins promoted from warn/off where the convention is non-negotiable.
+  operation-operationId: error
+  operation-description: warn
+  info-contact: warn
+  info-description: error
+  oas3-server-not-example.com: off # example.com is fine in templates/docs
+
+  paths-kebab-case:
+    description: Path segments must be kebab-case (parameters in {curlyBraces}).
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(/([a-z0-9]+(-[a-z0-9]+)*|\\{[a-zA-Z0-9]+\\}))+$"
+
+  operation-id-camel-case:
+    description: operationId must be camelCase.
+    severity: error
+    given: $.paths[*][get,put,post,delete,options,head,patch,trace].operationId
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  path-parameters-camel-case:
+    description: Path and query parameter names must be camelCase.
+    severity: error
+    given: $..parameters[?(@.in == 'path' || @.in == 'query')].name
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  schema-names-pascal-case:
+    description: Component schema names must be UpperCamelCase.
+    severity: error
+    given: $.components.schemas[*]~
+    then:
+      function: casing
+      functionOptions:
+        type: pascal
+
+  operation-must-have-default-response:
+    description: Every operation declares a `default` error response.
+    severity: error
+    given: $.paths[*][get,put,post,delete,options,head,patch,trace].responses
+    then:
+      field: default
+      function: truthy
+
+  errors-use-problem-json:
+    description: 4xx/5xx and default responses use application/problem+json.
+    severity: warn
+    given: $.paths[*][*].responses[?(@property.match(/^(4|5|default)/))].content[*]~
+    then:
+      function: enumeration
+      functionOptions:
+        values: [application/problem+json]
+
+  no-security-none:
+    description: >-
+      Operations must not silently drop auth: an empty security array is only
+      for deliberately public endpoints — justify each hit or remove it.
+    severity: warn
+    given: $.paths[*][*].security
+    then:
+      function: length
+      functionOptions:
+        min: 1
+
+  no-credentials-in-spec:
+    description: Specs must not contain live-looking secrets.
+    severity: error
+    given: $..*
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "/(api[_-]?key|secret|password)\\s*[:=]\\s*['\"]?[A-Za-z0-9+/]{16,}/i"

@@ -1,0 +1,228 @@
+# Starter OpenAPI 3.1 document — copy and adapt.
+# Shows the conventions this skill enforces: kebab-case paths, camelCase
+# operationIds, component reuse, problem+json errors, cursor pagination,
+# secure-by-default. Lint with: spectral lint template.openapi.yaml
+openapi: 3.1.0
+info:
+  title: Orders API
+  version: 1.0.0
+  description: >-
+    Create and track customer orders. Consumed by the storefront and the
+    fulfilment service.
+  contact:
+    name: Orders Team
+    email: orders-team@example.com
+servers:
+  - url: https://api.example.com/v1
+    description: Production
+  - url: https://staging.api.example.com/v1
+    description: Staging
+tags:
+  - name: orders
+    description: Customer order lifecycle.
+security:
+  - bearerAuth: []
+paths:
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List orders
+      description: Returns a cursor-paginated list of orders, newest first.
+      tags: [orders]
+      parameters:
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/PageToken"
+        - name: status
+          in: query
+          description: Filter by order status.
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+      responses:
+        "200":
+          description: One page of orders.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createOrder
+      summary: Create an order
+      description: Creates an order for a customer; the total is computed server-side.
+      tags: [orders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCreate"
+      responses:
+        "201":
+          description: The created order.
+          headers:
+            Location:
+              description: URL of the new order.
+              schema: {type: string, format: uri}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        default:
+          $ref: "#/components/responses/Error"
+  /orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        description: Order identifier.
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getOrder
+      summary: Get an order
+      description: Returns a single order by id.
+      tags: [orders]
+      responses:
+        "200":
+          description: The order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+  /orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order
+      description: Cancels an order that has not yet shipped.
+      tags: [orders]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order identifier.
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: The cancelled order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The order has already shipped and cannot be cancelled.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PageSize:
+      name: pageSize
+      in: query
+      description: Maximum items per page.
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    PageToken:
+      name: pageToken
+      in: query
+      description: Opaque cursor from a previous page's nextPageToken.
+      schema: {type: string}
+  schemas:
+    OrderStatus:
+      type: string
+      description: Lifecycle state of an order.
+      enum: [pending, paid, shipped, cancelled]
+    OrderItem:
+      type: object
+      description: One line of an order.
+      required: [sku, quantity]
+      properties:
+        sku: {type: string, description: Product identifier.}
+        quantity: {type: integer, minimum: 1}
+    OrderCreate:
+      type: object
+      description: Payload to create an order.
+      required: [customerId, items]
+      properties:
+        customerId: {type: string, format: uuid}
+        items:
+          type: array
+          minItems: 1
+          items: {$ref: "#/components/schemas/OrderItem"}
+        couponCode:
+          type: [string, "null"]
+          description: Optional discount code.
+    Order:
+      allOf:
+        - $ref: "#/components/schemas/OrderCreate"
+        - type: object
+          description: A customer order as stored by the service.
+          required: [id, status, totalAmount, createdAt]
+          properties:
+            id: {type: string, format: uuid, readOnly: true}
+            status: {$ref: "#/components/schemas/OrderStatus"}
+            totalAmount: {type: number, minimum: 0}
+            createdAt: {type: string, format: date-time, readOnly: true}
+    OrderPage:
+      type: object
+      description: One page of orders.
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Order"}
+        nextPageToken:
+          type: [string, "null"]
+          description: Cursor for the next page; null on the last page.
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      properties:
+        type: {type: string, format: uri, default: "about:blank"}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        instance: {type: string, format: uri}
+  responses:
+    Unauthorized:
+      description: Authentication is missing or invalid.
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    NotFound:
+      description: The resource does not exist.
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    UnprocessableEntity:
+      description: The request was well-formed but semantically invalid.
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    Error:
+      description: Unexpected error.
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
