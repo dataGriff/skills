@@ -1,0 +1,21 @@
+# Thin wrapper over the Taskfile: install pinned tools, run `task ci`.
+# Add new checks to the `ci` task in Taskfile.yml, not here — anything only
+# CI runs is something contributors can't run locally.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools from mise.toml
+        uses: jdx/mise-action@v2
+
+      - name: Run CI checks
+        run: task ci
