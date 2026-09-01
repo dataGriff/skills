@@ -35,6 +35,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/new_skill.py {{.NAME}}"
 
+  eval:skills:
+    desc: "Run with/without-skill evals via the claude CLI: task eval:skills [NAME=my-skill]"
+    cmds:
+      - "{{.PYTHON}} scripts/eval_skills.py {{.NAME}}"
+
   check:
     desc: Run all checks (skill best practices + context size)
     cmds:

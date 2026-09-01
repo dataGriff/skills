@@ -1,0 +1,46 @@
+apiVersion: v3.0.0
+kind: DataContract
+id: 7f3e9a12-4b5c-4d6e-8f90-1a2b3c4d5e6f
+name: CustomerProfiles
+version: 0.3.0
+status: active
+domain: crm
+dataProduct: customer360
+schema:
+  - name: CustomerProfiles
+    logicalType: object
+    physicalType: table
+    properties:
+      - name: CustomerId
+        logicalType: string
+        physicalType: varchar(36)
+        required: true
+        unique: true
+        primaryKey: true
+        quality:
+          - rule: nullValues
+            mustBe: 0
+      - name: emailAddress
+        logicalType: string
+        physicalType: varchar(320)
+        quality:
+          - rule: duplicateValues
+            mustBeLessThan: 10
+      - name: SignupDate
+        logicalType: date
+        physicalType: date
+servers:
+  - server: prod
+    type: postgres
+    host: crm-db.internal.example.com
+    port: 5432
+    database: crm
+    schema: public
+    password: hunter2
+team:
+  - username: bob@example.com
+    role: owner
+    dateIn: "2024-02-01"
+  - username: alice@example.com
+    role: data steward
+    dateIn: "2024-03-15"

@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Run with/without-skill evals for skills that define them.
+
+Usage (via the Taskfile — the canonical entrypoint):
+    task eval:skills             # every skill with an evals/evals.json
+    task eval:skills NAME=x      # one skill
+
+For each eval prompt this runs two headless `claude -p` sessions — one told
+to read and follow the skill, one without it — into
+.evals/<skill>/<timestamp>/eval-<id>-<name>/{with_skill,without_skill}/outputs/.
+If the skill ships evals/grade.py, it is run afterwards to produce
+grading.json per arm and a pass/total summary; otherwise outputs are left
+for human comparison.
+
+Requires the `claude` CLI. Deliberately NOT part of `task ci`: eval runs
+are slow, cost tokens, and are non-deterministic — see docs/skills.md for
+when to run them.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SKILLS_DIR = REPO_ROOT / "skills"
+EVAL_ROOT = REPO_ROOT / ".evals"
+RUN_TIMEOUT_SECONDS = 900
+
+WITH_SKILL_PROMPT = """Execute this task:
+- Skill path: {skill_dir} — FIRST read the SKILL.md at that path and follow \
+its instructions, loading its references/ and assets/ files as the skill directs.
+- Task: {prompt}
+- Save all output files in the current working directory.
+"""
+
+BASELINE_PROMPT = """Execute this task:
+- Task: {prompt}
+- Save all output files in the current working directory. Treat this as a \
+standalone task; do not read files under {skills_dir}.
+"""
+
+
+def run_claude(prompt: str, cwd: Path) -> dict:
+    start = time.time()
+    result = subprocess.run(
+        ["claude", "-p", prompt, "--permission-mode", "acceptEdits"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=RUN_TIMEOUT_SECONDS,
+    )
+    return {
+        "exit_code": result.returncode,
+        "duration_seconds": round(time.time() - start, 1),
+        "stdout_tail": result.stdout[-2000:],
+        "stderr_tail": result.stderr[-1000:],
+    }
+
+
+def run_skill_evals(skill_dir: Path) -> Path | None:
+    evals_file = skill_dir / "evals" / "evals.json"
+    spec = json.loads(evals_file.read_text(encoding="utf-8"))
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    iteration = EVAL_ROOT / skill_dir.name / stamp
+    fixtures = skill_dir / "evals" / "fixtures"
+
+    for ev in spec["evals"]:
+        eval_dir = iteration / f"eval-{ev['id']}-{ev['name']}"
+        for arm, template in (
+            ("with_skill", WITH_SKILL_PROMPT),
+            ("without_skill", BASELINE_PROMPT),
+        ):
+            outputs = eval_dir / arm / "outputs"
+            outputs.mkdir(parents=True, exist_ok=True)
+            for fixture in ev.get("files", []):
+                shutil.copy(fixtures / fixture, outputs / Path(fixture).name)
+            prompt = template.format(
+                skill_dir=skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
+            )
+            print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
+            info = run_claude(prompt, outputs)
+            (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
+            print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
+
+    grader = skill_dir / "evals" / "grade.py"
+    if grader.is_file():
+        print(f"  grading with {grader.relative_to(REPO_ROOT)}")
+        subprocess.run([sys.executable, str(grader), str(iteration)], check=False)
+    else:
+        print(f"  no grader — compare outputs manually under {iteration}")
+    return iteration
+
+
+def main() -> int:
+    if shutil.which("claude") is None:
+        print(
+            "eval_skills: the `claude` CLI is required to run evals "
+            "(https://claude.com/claude-code). Aborting.",
+            file=sys.stderr,
+        )
+        return 2
+
+    name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else None
+    if name:
+        targets = [SKILLS_DIR / name]
+        if not (targets[0] / "evals" / "evals.json").is_file():
+            print(f"eval_skills: skills/{name}/evals/evals.json not found", file=sys.stderr)
+            return 1
+    else:
+        targets = sorted(
+            p.parent.parent for p in SKILLS_DIR.glob("*/evals/evals.json")
+        )
+        if not targets:
+            print("eval_skills: no skill defines evals/evals.json — nothing to run.")
+            return 0
+
+    for skill_dir in targets:
+        print(f"Evaluating {skill_dir.name}:")
+        run_skill_evals(skill_dir)
+    print(f"\nResults under {EVAL_ROOT.relative_to(REPO_ROOT)}/ (gitignored).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
