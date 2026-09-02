@@ -105,13 +105,14 @@ def grade_review_legacy(out):
     ex.append(E("Upgraded to AsyncAPI 3.1.0", str(doc.get("asyncapi")) == "3.1.0",
                 doc.get("asyncapi")))
     s = json.dumps(doc)
+    servers = [srv or {} for srv in (doc.get("servers") or {}).values()]
     ex.append(E("Credentials removed and server split into host/protocol",
                 "hunter2" not in s and "svc_notify" not in s
-                and not any("url" in (srv or {})
-                            for srv in (doc.get("servers") or {}).values())
-                and all("host" in (srv or {})
-                        for srv in (doc.get("servers") or {}).values()),
-                "checked hunter2/svc_notify/url/host"))
+                and bool(servers)
+                and all("url" not in srv and "host" in srv and "protocol" in srv
+                        for srv in servers),
+                "checked hunter2/svc_notify/url/host/protocol on "
+                f"{len(servers)} server(s)"))
     signup_id, _ = channel_by_address(doc, "user/signedup")
     sent_id = None
     for cid, ch in (doc.get("channels") or {}).items():
@@ -152,7 +153,12 @@ GRADERS = {"eval-0": grade_author_inventory, "eval-1": grade_review_legacy}
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
-        grader = GRADERS[eval_dir.name[:6]]
+        key = "-".join(eval_dir.name.split("-", 2)[:2])
+        grader = GRADERS.get(key)
+        if grader is None:
+            print(f"  {eval_dir.name}: no grader registered for '{key}' — skipping",
+                  file=sys.stderr)
+            continue
         for arm in ("with_skill", "without_skill"):
             out = eval_dir / arm / "outputs"
             if not out.is_dir():

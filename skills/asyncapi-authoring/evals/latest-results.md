@@ -4,10 +4,10 @@ Last run: 2026-09-01 UTC, iteration 20260901-212212 (run via session
 subagents; rerun with `task eval:skills NAME=asyncapi-authoring` — commit
 this file with the skill change so the PR carries the evidence).
 
-| Eval | With skill | Baseline | Time (skill/base) | Cost, tokens (skill/base) |
-|------|-----------|----------|-------------------|---------------------------|
-| author-inventory-asyncapi | 7/7 | 6/7 | 37.9s / 28.5s | 50.4k / 40.7k |
-| review-legacy-asyncapi | 7/7 | 7/7 | 115.0s / 171.1s | 65.2k / 48.2k |
+| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |
+|------|-----------|----------|-------------------|-------------------|
+| author-inventory-asyncapi | 7/7 | 6/7 | 37.9s / 28.5s | 50.4k tok / 40.7k tok |
+| review-legacy-asyncapi | 7/7 | 7/7 | 115.0s / 171.1s | 65.2k tok / 48.2k tok |
 
 Notes: the baseline's one failure targeted AsyncAPI 3.0.0 despite being
 asked for the latest version (3.1.0, Jan 2026) — the knowledge-currency
