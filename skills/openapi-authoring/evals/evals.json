@@ -1,0 +1,21 @@
+{
+  "skill_name": "openapi-authoring",
+  "evals": [
+    {
+      "id": 0,
+      "name": "author-books-api",
+      "prompt": "We need an API contract for our bookstore inventory service before the team starts building. Write an OpenAPI spec for it. Requirements: list books (cursor pagination, filter by genre), create a book, get a single book by id, and discontinue a book (it stays retrievable but is flagged). A book has an id (uuid, server-assigned), title, author, genre (one of fiction/nonfiction/reference), price in minor units (integer, >= 0), and discontinuedAt (timestamp, null while the book is active). Auth is a JWT bearer token everywhere. Errors should follow our problem+json convention. Save it as books-api.openapi.yaml",
+      "expected_output": "Lint-clean OpenAPI 3.1 spec: kebab-case paths, camelCase operationIds, components reuse, RFC 9457 problem+json error responses incl. default, bearerAuth security, cursor pagination, 3.1-style nullable discontinuedAt",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-legacy-spec",
+      "prompt": "A contractor left us this API spec (legacy-customers-api.yaml, in the current directory). We're standardising on OpenAPI 3.1 and our conventions: kebab-case resource paths, camelCase operationIds on every operation, problem+json errors with a default response on every operation, no secrets in specs. Review it, write a review.md listing what's wrong, and produce a fixed version saved as customers-api.openapi.yaml.",
+      "expected_output": "Review catching the verb/camelCase paths, missing operationIds and error responses, 3.0-only nullable usage, and the hardcoded API key; fixed lint-clean 3.1 spec",
+      "files": [
+        "legacy-customers-api.yaml"
+      ]
+    }
+  ]
+}
