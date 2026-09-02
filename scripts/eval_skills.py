@@ -52,7 +52,11 @@ standalone task; do not read files under {skills_dir}.
 
 
 def run_claude(
-    prompt: str, cwd: Path, model: str | None = None, add_dir: Path | None = None
+    prompt: str,
+    cwd: Path,
+    model: str | None = None,
+    add_dir: Path | None = None,
+    allowed_tools: list[str] | None = None,
 ) -> dict:
     cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
            "--output-format", "json"]
@@ -63,6 +67,12 @@ def run_claude(
         # add_dir (the skill directory); some models otherwise refuse to
         # read outside cwd even under acceptEdits.
         cmd += ["--add-dir", str(add_dir)]
+    if allowed_tools:
+        # acceptEdits auto-approves file edits but not shell commands. An
+        # eval whose task is to drive a CLI declares the commands it needs
+        # in evals.json ("allowed_tools"); without this both arms stall
+        # asking for approval and burn turns producing nothing.
+        cmd += ["--allowedTools", *allowed_tools]
     start = time.time()
     result = subprocess.run(
         cmd,
@@ -98,6 +108,7 @@ def run_claude(
 def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
     evals_file = skill_dir / "evals" / "evals.json"
     spec = json.loads(evals_file.read_text(encoding="utf-8"))
+    allowed_tools = spec.get("allowed_tools") or []
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     iteration = EVAL_ROOT / skill_dir.name / stamp
     fixtures = skill_dir / "evals" / "fixtures"
@@ -117,7 +128,7 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             )
             add_dir = skill_dir if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
-            info = run_claude(prompt, outputs, model, add_dir)
+            info = run_claude(prompt, outputs, model, add_dir, allowed_tools)
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
             print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
 

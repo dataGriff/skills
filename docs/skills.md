@@ -91,6 +91,10 @@ task eval:skills NAME=my-skill   # or omit NAME for all skills with evals
 
 Each prompt runs twice through headless `claude -p` — once following the
 skill, once without — into the gitignored `.evals/` directory; `grade.py`
+scores both arms. Headless runs auto-approve file edits but not shell
+commands, so an eval whose task drives a CLI must list the commands it
+needs as `"allowed_tools": ["Bash(datacontract *)"]` at the top level of
+`evals.json` — otherwise both arms stall asking for approval. `grade.py`
 scores both arms so you can compare pass rate, and the run metadata gives
 time and cost per task. The runner also refreshes the skill's
 `evals/latest-results.md` — a small **committed** summary table, so a PR
