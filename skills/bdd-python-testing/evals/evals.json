@@ -1,0 +1,29 @@
+{
+  "skill_name": "bdd-python-testing",
+  "allowed_tools": [
+    "Bash(pytest*)",
+    "Bash(python*)",
+    "Bash(behave*)",
+    "Bash(mkdir*)",
+    "Bash(mv*)",
+    "Bash(cp*)",
+    "Bash(ls*)",
+    "Bash(cat*)"
+  ],
+  "evals": [
+    {
+      "id": 0,
+      "name": "pytest-bdd-wiring",
+      "prompt": "we've specced our gift card redemption behaviour in giftcard.feature (current directory) and the domain code is in giftcard.py. implement the BDD tests in python so those scenarios actually execute with pytest - wire up whatever step definitions and config you need. don't change giftcard.py or the feature file. when I run pytest everything should pass.",
+      "expected_output": "pytest-bdd suite binding every scenario (outline rows included), parameterised parsed steps, state via fixtures, refusal scenarios capture the exception, feature file untouched",
+      "files": ["giftcard.feature", "giftcard.py"]
+    },
+    {
+      "id": 1,
+      "name": "behave-wiring",
+      "prompt": "our team writes cucumber-style specs. room_booking.feature (current directory) covers the meeting room booking rules and booking.py has the domain code. set this up as a behave project so `behave` runs green - lay out the tree, steps and any hooks behave needs. keep booking.py as-is and don't reword the feature file (moving it into the right directory is fine).",
+      "expected_output": "Conventional behave tree (features/, steps/), parameterised steps sharing state via context, table consumed from context.table, refusals captured not raised, feature text unchanged",
+      "files": ["room_booking.feature", "booking.py"]
+    }
+  ]
+}
