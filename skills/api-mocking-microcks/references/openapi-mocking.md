@@ -161,6 +161,12 @@ operations:
 A Postman collection with saved request/response examples works as a
 secondary artifact too (same name:version in the collection description).
 
+Prefer these overlay kinds over maintaining a second OpenAPI file with the
+same title/version: a parallel spec copy duplicates paths and schemas that
+drift on every regeneration — the exact burden overlays exist to avoid.
+(And note `x-microcks-labels` is not a real extension; labels belong in
+APIMetadata or under `info.x-microcks`.)
+
 ## Default dispatching (what Microcks infers)
 
 With no explicit dispatcher, Microcks derives one from the operation shape:

@@ -102,6 +102,10 @@ event mocking, see the references below.
   `mainArtifact=true` and each extra file (APIExamples overlay, Postman
   collection) with `mainArtifact=false`. Same `info.title` + version, or
   they land on separate APIs.
+- **Spec you must not edit** (generated, another team's) → don't fork a
+  second OpenAPI copy of it for examples; layer `APIExamples`/`APIMetadata`
+  overlays as secondary artifacts instead — see
+  [references/openapi-mocking.md](references/openapi-mocking.md).
 - **Don't hand-craft mock URLs in app config** — inject the base endpoint
   (Testcontainers exposes `getRestMockEndpoint(...)`) so tests survive port
   changes.

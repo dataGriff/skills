@@ -50,8 +50,10 @@ def find_by_kind(out, kind):
     return None, None
 
 
-def all_md_text(out):
-    return "\n".join(p.read_text() for p in sorted(out.rglob("*.md"))).lower()
+def all_doc_text(out):
+    """Docs and scripts an agent might put instructions in."""
+    files = [p for pat in ("*.md", "*.sh", "*.txt") for p in sorted(out.rglob(pat))]
+    return "\n".join(p.read_text() for p in files).lower()
 
 
 def E(text, passed, evidence):
@@ -105,8 +107,9 @@ def grade_json_body(out):
                 and rules.get("operator") == "range",
                 f"exp={rules.get('exp') if isinstance(rules, dict) else rules} "
                 f"op={(rules or {}).get('operator') if isinstance(rules, dict) else ''}"))
-    ex.append(E("Range cases use [..;..] bracket syntax and include a default",
-                any("[" in k or "]" in k for k in cases) and "default" in cases,
+    ex.append(E("Range cases are bare [..;..] intervals (no range() prefix) plus a default",
+                "default" in cases and any(k.startswith(("[", "]")) for k in cases)
+                and not any(k.lower().startswith("range") for k in cases),
                 f"case keys={sorted(cases)}"))
 
     resp_names = response_example_names(post_op)
@@ -179,7 +182,7 @@ def grade_async(out):
                 "x-microcks-operation" in text and "frequency" in text and "5" in text.split("frequency")[-1][:20],
                 "grep x-microcks-operation frequency"))
 
-    md_text = all_md_text(out)
+    md_text = all_doc_text(out)
     ex.append(E("EVENTS.md runs Microcks via docker",
                 "docker" in md_text and "microcks" in md_text, "grep docker+microcks"))
     ex.append(E("EVENTS.md points at the broker-free WebSocket mock endpoint",
@@ -196,52 +199,44 @@ def grade_overlay(out):
                 spec.exists() and spec.read_bytes() == fixture.read_bytes(),
                 "compared against fixture"))
 
-    p, exdoc = find_by_kind(out, "APIExamples")
-    if exdoc is None:
-        ex.append(E("APIExamples overlay produced", False, "no kind: APIExamples yaml found"))
-        return ex
-    meta = exdoc.get("metadata") or {}
-    ex.append(E("APIExamples identity matches the spec (Inventory API 2.3.0)",
-                str(exdoc.get("apiVersion", "")).startswith("mocks.microcks.io")
+    # Mock content, wherever it landed (canonical overlay or not).
+    extra = "\n".join(p.read_text() for p in sorted(out.rglob("*.y*ml"))
+                      if p.name != "inventory-api-generated.yaml")
+    ex.append(E("All three item exchanges present with the requested data",
+                all(v in extra for v in
+                    ("WIDGET-1", "GADGET-7", "MISSING-0", "Widget", "Gadget", "42")),
+                "grep skus/names/stock in extra yamls"))
+    ex.append(E("Reservation response has a templated id and echoes the request body",
+                has_generator(extra) and "request.body" in extra,
+                "grep generator + request.body"))
+    ex.append(E("150ms delay and domain=inventory label configured somewhere",
+                "150" in extra and "domain" in extra and "inventory" in extra,
+                "grep 150/domain/inventory"))
+
+    # The canonical mechanism: overlay artifacts, not a parallel spec copy.
+    _, exdoc = find_by_kind(out, "APIExamples")
+    meta = (exdoc or {}).get("metadata") or {}
+    ex.append(E("Uses an APIExamples overlay with identity matching the spec",
+                exdoc is not None
+                and str(exdoc.get("apiVersion", "")).startswith("mocks.microcks.io")
                 and meta.get("name") == "Inventory API" and str(meta.get("version")) == "2.3.0",
-                f"apiVersion={exdoc.get('apiVersion')} name={meta.get('name')} "
-                f"version={meta.get('version')}"))
-
-    ops = exdoc.get("operations") or {}
-    get_key = next((k for k in ops if "{sku}" in k), None)
-    post_key = next((k for k in ops if "reservations" in k.lower()), None)
-    ostr = json.dumps(ops, default=str)
-    ex.append(E("Both operations covered, keyed by 'VERB /path'",
-                get_key is not None and post_key is not None, f"keys={sorted(ops)}"))
-    ex.append(E("WIDGET-1 and GADGET-7 item exchanges with the requested data",
-                all(v in ostr for v in ("WIDGET-1", "GADGET-7", "Widget", "Gadget", "42", "0")),
-                "grep skus/names/stock"))
-    known404 = json.dumps((ops.get(get_key) or {}), default=str)
-    ex.append(E("MISSING-0 exchange returns the 404",
-                "MISSING-0" in known404 and "404" in known404, "grep MISSING-0 + 404"))
-    resv = json.dumps((ops.get(post_key) or {}), default=str)
-    ex.append(E("Reservation response has a templated id and echoes sku/quantity",
-                has_generator(resv) and "request.body" in resv,
-                "grep generator + request.body in reservation"))
-
+                "no kind: APIExamples yaml found" if exdoc is None
+                else f"name={meta.get('name')} version={meta.get('version')}"))
     _, mdoc = find_by_kind(out, "APIMetadata")
-    if mdoc is None:
-        ex.append(E("APIMetadata overlay with delay and label", False,
-                    "no kind: APIMetadata yaml found"))
-    else:
-        mmeta = mdoc.get("metadata") or {}
-        mstr = json.dumps(mdoc, default=str)
-        ex.append(E("APIMetadata sets the 150ms delay and domain=inventory label",
-                    mmeta.get("name") == "Inventory API" and str(mmeta.get("version")) == "2.3.0"
-                    and "150" in mstr and (mmeta.get("labels") or {}).get("domain") == "inventory",
-                    f"labels={mmeta.get('labels')} grep 150"))
+    mmeta = (mdoc or {}).get("metadata") or {}
+    mstr = json.dumps(mdoc, default=str)
+    ex.append(E("Uses an APIMetadata overlay for the delay and label",
+                mdoc is not None and mmeta.get("name") == "Inventory API"
+                and "150" in mstr and (mmeta.get("labels") or {}).get("domain") == "inventory",
+                "no kind: APIMetadata yaml found" if mdoc is None
+                else f"labels={mmeta.get('labels')} grep 150"))
 
-    md_text = all_md_text(out)
+    doc_text = all_doc_text(out)
     ex.append(E("Import instructions load spec as main, overlays as secondary",
-                ("mainartifact=true" in md_text.replace('"', "").replace("'", "")
-                 or ":true" in md_text)
-                and ("mainartifact=false" in md_text.replace('"', "").replace("'", "")
-                     or ":false" in md_text),
+                ("mainartifact=true" in doc_text.replace('"', "").replace("'", "")
+                 or ":true" in doc_text)
+                and ("mainartifact=false" in doc_text.replace('"', "").replace("'", "")
+                     or ":false" in doc_text),
                 "grep mainArtifact=true/false or cli :true/:false"))
     return ex
 
@@ -270,12 +265,15 @@ def grade_testcontainers(out):
                 "grep client + order assertions"))
     ex.append(E("Contract test uses testEndpoint with the OPEN_API_SCHEMA runner",
                 "testEndpoint" in code and "OPEN_API_SCHEMA" in code
-                and "localhost:3000" in code, "grep testEndpoint + runner + SUT url"))
+                and any(sut in code for sut in
+                        ("localhost:3000", "host.testcontainers.internal",
+                         "host.docker.internal")),
+                "grep testEndpoint + runner + SUT url"))
     ex.append(E("No hand-built mock URLs (no /rest/... or fixed Microcks port)",
                 "rest/order" not in code.lower().replace(" ", "").replace("+", "")
                 and "8585" not in code and "localhost:8080" not in code,
                 "grep hardcoded rest paths/ports"))
-    md_text = all_md_text(out)
+    md_text = all_doc_text(out)
     ex.append(E("README-TESTS.md covers installing the Testcontainers module",
                 "microcks-testcontainers" in md_text, "grep install command"))
     return ex

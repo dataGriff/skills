@@ -47,6 +47,11 @@ Range example: `"operator": "range"`, cases keyed like `"[1;10]"`
 (inclusive brackets, `]1;10[` exclusive). `size` works on array length,
 `presence` has cases `found`/`default`.
 
+Two mistakes silently break JSON_BODY dispatching: omitting the
+`"operator"` field, and prefixing case keys (`"range(1,10)"`,
+`"range[1;10]"`) — keys are bare `[..;..]` intervals, nothing else. Case
+*values* must be response example names that exist, or matches 400.
+
 ### SCRIPT
 
 A Groovy script with `mockRequest` in scope; return the example name.
