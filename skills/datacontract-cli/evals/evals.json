@@ -1,5 +1,6 @@
 {
   "skill_name": "datacontract-cli",
+  "allowed_tools": ["Bash(datacontract *)"],
   "evals": [
     {
       "id": 0,

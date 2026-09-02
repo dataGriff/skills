@@ -2,8 +2,13 @@
 """Run with/without-skill evals for skills that define them.
 
 Usage (via the Taskfile — the canonical entrypoint):
-    task eval:skills             # every skill with an evals/evals.json
-    task eval:skills NAME=x      # one skill
+    task eval:skills                        # every skill with an evals/evals.json
+    task eval:skills NAME=x                 # one skill
+    task eval:skills NAME=x MODEL=sonnet    # pin both arms to one model
+
+MODEL is passed straight to `claude -p --model`; omit it to use the CLI's
+own default. Pin it when you want a reproducible comparison on a specific
+model rather than whatever the headless default happens to be.
 
 For each eval prompt this runs two headless `claude -p` sessions — one told
 to read and follow the skill, one without it — into
@@ -46,11 +51,31 @@ standalone task; do not read files under {skills_dir}.
 """
 
 
-def run_claude(prompt: str, cwd: Path) -> dict:
+def run_claude(
+    prompt: str,
+    cwd: Path,
+    model: str | None = None,
+    add_dir: Path | None = None,
+    allowed_tools: list[str] | None = None,
+) -> dict:
+    cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
+           "--output-format", "json"]
+    if model:
+        cmd += ["--model", model]
+    if add_dir:
+        # The with-skill prompt tells the model to read files under
+        # add_dir (the skill directory); some models otherwise refuse to
+        # read outside cwd even under acceptEdits.
+        cmd += ["--add-dir", str(add_dir)]
+    if allowed_tools:
+        # acceptEdits auto-approves file edits but not shell commands. An
+        # eval whose task is to drive a CLI declares the commands it needs
+        # in evals.json ("allowed_tools"); without this both arms stall
+        # asking for approval and burn turns producing nothing.
+        cmd += ["--allowedTools", *allowed_tools]
     start = time.time()
     result = subprocess.run(
-        ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
-         "--output-format", "json"],
+        cmd,
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -66,6 +91,10 @@ def run_claude(prompt: str, cwd: Path) -> dict:
         info["duration_seconds"] = round(payload.get("duration_ms", 0) / 1000, 1) or info["duration_seconds"]
         info["num_turns"] = payload.get("num_turns")
         info["total_cost_usd"] = payload.get("total_cost_usd")
+        # Which models actually served the run — the CLI default can change
+        # between runs (e.g. after /model in an interactive session), so a
+        # results table without this is not comparable across runs.
+        info["models"] = sorted((payload.get("modelUsage") or {}).keys())
         usage = payload.get("usage") or {}
         info["tokens"] = sum(
             v for k, v in usage.items() if isinstance(v, (int, float)) and "tokens" in k
@@ -76,9 +105,10 @@ def run_claude(prompt: str, cwd: Path) -> dict:
     return info
 
 
-def run_skill_evals(skill_dir: Path) -> Path | None:
+def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
     evals_file = skill_dir / "evals" / "evals.json"
     spec = json.loads(evals_file.read_text(encoding="utf-8"))
+    allowed_tools = spec.get("allowed_tools") or []
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     iteration = EVAL_ROOT / skill_dir.name / stamp
     fixtures = skill_dir / "evals" / "fixtures"
@@ -96,8 +126,9 @@ def run_skill_evals(skill_dir: Path) -> Path | None:
             prompt = template.format(
                 skill_dir=skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
+            add_dir = skill_dir if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
-            info = run_claude(prompt, outputs)
+            info = run_claude(prompt, outputs, model, add_dir, allowed_tools)
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
             print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
 
@@ -107,42 +138,85 @@ def run_skill_evals(skill_dir: Path) -> Path | None:
         subprocess.run([sys.executable, str(grader), str(iteration)], check=False)
     else:
         print(f"  no grader — compare outputs manually under {iteration}")
-    write_results_summary(skill_dir, iteration, stamp)
+    write_results_summary(skill_dir, iteration, stamp, model)
     return iteration
 
 
-def write_results_summary(skill_dir: Path, iteration: Path, stamp: str) -> None:
+def write_results_summary(
+    skill_dir: Path, iteration: Path, stamp: str, model: str | None = None
+) -> None:
     """Write evals/latest-results.md — committed, so eval results show up in
     the pull request diff alongside the skill change that prompted the run."""
+    model_suffix = f" MODEL={model}" if model else ""
+    served: set[str] = set()
+    for run_file in iteration.glob("eval-*/*/run.json"):
+        served.update(json.loads(run_file.read_text()).get("models") or [])
     lines = [
         f"# Eval results: {skill_dir.name}",
         "",
-        f"Last run: {stamp} UTC via `task eval:skills NAME={skill_dir.name}` "
-        "(commit this file with the skill change so the PR carries the evidence).",
+        f"Last run: {stamp} UTC via `task eval:skills NAME={skill_dir.name}"
+        f"{model_suffix}` (commit this file with the skill change so the PR "
+        "carries the evidence).",
         "",
-        "| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |",
-        "|------|-----------|----------|-------------------|-------------------|",
+        f"Models served: {', '.join(sorted(served)) or 'not recorded'}.",
+        "",
+        "| Eval | With skill | Baseline | Turns (skill/base) | Time (skill/base) | Cost (skill/base) |",
+        "|------|-----------|----------|--------------------|-------------------|-------------------|",
     ]
+    separating: list[str] = []
+    tokens = {"with_skill": 0, "without_skill": 0}
     for eval_dir in sorted(iteration.glob("eval-*")):
-        cells = {}
+        cells, expectations = {}, {}
         for arm in ("with_skill", "without_skill"):
             g, r = eval_dir / arm / "grading.json", eval_dir / arm / "run.json"
-            score, secs, cost = "?", "?", "?"
+            score, turns, secs, cost = "?", "?", "?", "?"
             if g.is_file():
-                s = json.loads(g.read_text()).get("summary", {})
+                graded = json.loads(g.read_text())
+                s = graded.get("summary", {})
                 score = f"{s.get('passed', '?')}/{s.get('total', '?')}"
+                expectations[arm] = graded.get("expectations", [])
             if r.is_file():
                 run = json.loads(r.read_text())
+                turns = run.get("num_turns", "?")
                 secs = f"{run.get('duration_seconds', '?')}s"
                 usd = run.get("total_cost_usd")
                 cost = f"${usd:.2f}" if isinstance(usd, (int, float)) else "?"
-            cells[arm] = (score, secs, cost)
-        w, b = cells.get("with_skill", ("?",) * 3), cells.get("without_skill", ("?",) * 3)
+                tokens[arm] += run.get("tokens") or 0
+            cells[arm] = (score, turns, secs, cost)
+        w, b = cells.get("with_skill", ("?",) * 4), cells.get("without_skill", ("?",) * 4)
         name = eval_dir.name.split("-", 2)[-1]
-        lines.append(f"| {name} | {w[0]} | {b[0]} | {w[1]} / {b[1]} | {w[2]} / {b[2]} |")
+        lines.append(
+            f"| {name} | {w[0]} | {b[0]} | {w[1]} / {b[1]} | {w[2]} / {b[2]} | {w[3]} / {b[3]} |"
+        )
+        if "with_skill" in expectations and "without_skill" in expectations:
+            pairs = list(zip(expectations["with_skill"], expectations["without_skill"]))
+            differ = sum(1 for a, c in pairs if a.get("passed") != c.get("passed"))
+            separating.append(f"{name} {differ}/{len(pairs)}")
+    lines.append("")
+    if separating:
+        lines.append(
+            "Grader checks that separated the arms: " + ", ".join(separating)
+            + ". A check both arms always pass measures nothing; a score delta "
+            "with none separating is noise."
+        )
+    if tokens["without_skill"]:
+        ratio = tokens["with_skill"] / tokens["without_skill"]
+        lines.append(
+            f"Token cost, with skill / baseline: {ratio:.2f}x. Turns above the "
+            "baseline usually mean SKILL.md loads bundled files unconditionally."
+        )
     lines += ["", f"Full outputs (gitignored): `.evals/{skill_dir.name}/{stamp}/`.", ""]
-    (skill_dir / "evals" / "latest-results.md").write_text("\n".join(lines), encoding="utf-8")
-    print(f"  summary → {skill_dir.relative_to(REPO_ROOT)}/evals/latest-results.md")
+
+    # Keep any hand-written sections (## headings) from the previous file:
+    # the generated block above is regenerated every run, the notes are not.
+    out = skill_dir / "evals" / "latest-results.md"
+    if out.is_file():
+        previous = out.read_text(encoding="utf-8").splitlines()
+        first_section = next((i for i, l in enumerate(previous) if l.startswith("## ")), None)
+        if first_section is not None:
+            lines += previous[first_section:] + [""]
+    out.write_text("\n".join(lines), encoding="utf-8")
+    print(f"  summary → {out.relative_to(REPO_ROOT)}")
 
 
 def main() -> int:
@@ -155,6 +229,7 @@ def main() -> int:
         return 2
 
     name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else None
+    model = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
     if name:
         targets = [SKILLS_DIR / name]
         if not (targets[0] / "evals" / "evals.json").is_file():
@@ -169,8 +244,8 @@ def main() -> int:
             return 0
 
     for skill_dir in targets:
-        print(f"Evaluating {skill_dir.name}:")
-        run_skill_evals(skill_dir)
+        print(f"Evaluating {skill_dir.name}" + (f" on {model}" if model else "") + ":")
+        run_skill_evals(skill_dir, model)
     print(f"\nResults under {EVAL_ROOT.relative_to(REPO_ROOT)}/ (gitignored).")
     return 0
 

@@ -21,7 +21,12 @@ SNAKE = re.compile(r"^[a-z0-9]+(_[a-z0-9]+)*$")
 
 
 def sh(*args):
-    r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    except FileNotFoundError:
+        # A missing tool must fail the check with evidence, not crash the
+        # grader and leave every arm unscored.
+        return 127, f"{args[0]}: not installed"
     return r.returncode, (r.stdout + r.stderr)[-600:]
 
 
