@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: Order API
+  version: "1.0"
+paths:
+  /orders/{orderId}:
+    get:
+      operationId: getOrderById
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+          examples:
+            shipped:
+              value: abc123
+            pending:
+              value: def456
+      responses:
+        "200":
+          description: Order found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                shipped:
+                  value:
+                    id: abc123
+                    status: shipped
+                    total: 45.5
+                pending:
+                  value:
+                    id: def456
+                    status: pending
+                    total: 12.0
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderRequest"
+            examples:
+              created:
+                value:
+                  productId: 42
+                  quantity: 2
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                created:
+                  value:
+                    id: "{{ guid() }}"
+                    status: pending
+                    total: 24.0
+components:
+  schemas:
+    Order:
+      type: object
+      required: [id, status, total]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        total:
+          type: number
+    OrderRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+        quantity:
+          type: integer

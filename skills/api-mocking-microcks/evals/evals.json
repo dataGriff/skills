@@ -3,9 +3,9 @@
   "evals": [
     {
       "id": 0,
-      "name": "mock-rest-order-api",
-      "prompt": "Our frontend team needs to build against the Order API before the backend exists, so we want live mocks they can curl. The API: GET /orders/{orderId} returns an order (id, status, total). Orders abc123 (status shipped, total 45.50) and def456 (status pending, total 12.00) must be mockable, and ANY other order id should get a 404 with an error message. POST /orders takes {productId, quantity} and returns 201 with the created order: a freshly generated id, a createdAt timestamp, and the productId and quantity echoed back from whatever the caller sent. Write an OpenAPI spec as order-api.yaml (title exactly 'Order API', version '1.0') set up so Microcks serves exactly those mock behaviors, plus a short MOCKING.md telling the team how to run the mocks locally with docker and example curl commands against the mock endpoints.",
-      "expected_output": "OpenAPI spec with paired named examples, a FALLBACK dispatcher for the 404-on-anything-else, templated POST response (generated id, echoed body fields), and docs with the correct /rest/{name}/{version} mock URLs",
+      "name": "json-body-dispatch",
+      "prompt": "Our Lending API (OpenAPI title exactly 'Lending API', version '1.0') has a single operation: POST /loan-applications taking {applicantName, amount}. Product wants the mock to behave like the real decision engine: amounts from 1 to 10000 come back 201 approved, 10001 to 50000 come back 202 pending manual review, and anything outside those bands comes back 422 rejected. Every response needs a freshly generated application id and must echo back the submitted amount. URL-based matching can't work here — every call is a POST to the same path, so the mock has to decide from the JSON request body. Write lending-api.yaml so that importing just that file into Microcks gives exactly this behavior.",
+      "expected_output": "OpenAPI spec whose POST carries a JSON_BODY dispatcher with range rules on /amount whose cases name real response examples (201/202/422), plus templated id and request.body echo in every response",
       "files": []
     },
     {
@@ -14,6 +14,24 @@
       "prompt": "Our notifications team is building a consumer for user signup events but the producer service doesn't exist yet. They need live sample traffic locally WITHOUT standing up Kafka or any broker. Events flow on channel user/signedup and look like {\"id\": <unique id>, \"email\": <email>, \"tier\": \"free\"|\"pro\"}. Give them two different named sample users, make the id different on every published message (freshly generated each time, not hard-coded), and have messages published every 5 seconds. Write an AsyncAPI spec as user-signedup-api.yaml (title exactly 'User Signedup API', version '0.1.0') that Microcks can mock that way, plus a short EVENTS.md explaining how to run it locally with docker and how to see the live event traffic.",
       "expected_output": "AsyncAPI spec with named message examples on the emitting operation, {{ guid() }}-style templated ids, x-microcks-operation frequency 5, and docs pointing at the broker-free WebSocket mock endpoint",
       "files": []
+    },
+    {
+      "id": 2,
+      "name": "overlay-generated-spec",
+      "prompt": "The platform team generates inventory-api-generated.yaml (in the current directory) from code annotations. It's regenerated on every release, any edits to it get clobbered, and they won't add mock data for us — but we run our own Microcks and need mocks for it. Set that up WITHOUT touching the generated file. We need: GET /items/{sku} returning realistic items for sku WIDGET-1 (name 'Widget', stock 42) and GADGET-7 (name 'Gadget', stock 0), sku MISSING-0 hitting the 404; POST /reservations returning a created reservation that echoes the submitted sku and quantity with a freshly generated reservation id, and that operation should respond with a 150ms delay to feel realistic. Also label the API with domain=inventory so it's findable in our catalog. Deliver the file(s) we need plus the exact import commands, in whatever order they must run.",
+      "expected_output": "Generated spec byte-identical; APIExamples overlay (matching name/version, all four exchanges, templated reservation) and APIMetadata overlay (150ms delay, domain label); import instructions with spec as main artifact and overlays as secondary",
+      "files": [
+        "inventory-api-generated.yaml"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "testcontainers-contract-wiring",
+      "prompt": "We have order-api.yaml (in the current directory) describing the Order API our Node order-service implements and consumes. Write a Jest integration test as order-client.integration.test.ts that: (1) starts Microcks with Testcontainers and loads the spec; (2) exercises our OrderClient against the mocks — assume `import { OrderClient } from '../src/order-client'` where the constructor takes the API base URL — checking that fetching order abc123 gives status shipped and def456 gives pending; (3) in a separate test, contract-tests our real service against the spec's schemas — assume `import { startServer } from '../src/server'` starts it listening on http://localhost:3000/api — and asserts the conformance run succeeded. Don't hardcode any mock URLs or ports; derive everything from the running container. Also write README-TESTS.md with the dependency install command and how to run the tests.",
+      "expected_output": "Jest test using @microcks/microcks-testcontainers: withMainArtifacts + getRestMockEndpoint('Order API','1.0') injected into OrderClient, a testEndpoint(...) contract test with the OPEN_API_SCHEMA runner against the local service, no hand-built mock URLs",
+      "files": [
+        "order-api.yaml"
+      ]
     }
   ]
 }

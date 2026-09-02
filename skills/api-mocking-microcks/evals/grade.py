@@ -6,17 +6,20 @@ out by scripts/eval_skills.py (run via `task eval:skills
 NAME=api-mocking-microcks`). Writes grading.json per arm and prints a
 pass/total summary.
 
-Grading is static: it checks the produced specs against the Microcks
-conventions that determine whether mocks actually work (named-example
-pairing, dispatcher config, `{{ }}` templating, async frequency/direction).
-Container registries hosting Microcks images may be unreachable in
-sandboxed environments, so no live import is attempted.
+Grading is static: it checks the produced specs, overlays, and test code
+against the Microcks conventions that determine whether mocks actually work
+(dispatcher wiring, named-example pairing, `{{ }}` templating, overlay
+identity matching, Testcontainers endpoint injection). Container registries
+hosting Microcks images may be unreachable in sandboxed environments, so no
+live import is attempted.
 """
 import json
 import sys
 from pathlib import Path
 
 import yaml
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def load_yaml(path):
@@ -37,6 +40,20 @@ def find_spec(out, preferred, root_key):
     return None
 
 
+def find_by_kind(out, kind):
+    """Locate a Microcks overlay (APIExamples/APIMetadata) among the outputs."""
+    for p in sorted(out.rglob("*.y*ml")):
+        text = p.read_text()
+        for doc in yaml.safe_load_all(text) if "---" in text else [load_yaml(p)]:
+            if isinstance(doc, dict) and doc.get("kind") == kind:
+                return p, doc
+    return None, None
+
+
+def all_md_text(out):
+    return "\n".join(p.read_text() for p in sorted(out.rglob("*.md"))).lower()
+
+
 def E(text, passed, evidence):
     return {"text": text, "passed": bool(passed), "evidence": str(evidence)[:500]}
 
@@ -48,70 +65,63 @@ def has_generator(s):
     return "{{" in s and any(g in s for g in ("guid(", "uuid(", "randomstring("))
 
 
-def example_names(node):
-    """Names of the plural named-`examples` map on a parameter/media object."""
-    if not isinstance(node, dict):
-        return set()
-    ex = node.get("examples")
-    return set(ex.keys()) if isinstance(ex, dict) else set()
+def response_example_names(op):
+    names = set()
+    for resp in (op.get("responses") or {}).values():
+        for media in (resp.get("content") or {}).values():
+            ex = media.get("examples")
+            if isinstance(ex, dict):
+                names |= set(ex.keys())
+    return names
 
 
-def grade_rest(out):
+def grade_json_body(out):
     ex = []
-    f = find_spec(out, "order-api.yaml", "openapi")
+    f = find_spec(out, "lending-api.yaml", "openapi")
     if f is None:
-        return [E("order-api.yaml produced and parseable", False, "no OpenAPI yaml found")]
+        return [E("lending-api.yaml produced and parseable", False, "no OpenAPI yaml found")]
     doc = load_yaml(f)
     if not isinstance(doc, dict):
-        return [E("order-api.yaml produced and parseable", False, "yaml parse error")]
-    text = f.read_text()
+        return [E("lending-api.yaml produced and parseable", False, "yaml parse error")]
     info = doc.get("info") or {}
-    ex.append(E("info.title 'Order API' and version '1.0' (Microcks identity)",
-                info.get("title") == "Order API" and str(info.get("version")) == "1.0",
+    ex.append(E("info.title 'Lending API' and version '1.0' (Microcks identity)",
+                info.get("title") == "Lending API" and str(info.get("version")) == "1.0",
                 f"title={info.get('title')} version={info.get('version')}"))
 
-    # GET /orders/{id}: named examples paired between path param and 200 response
-    get_op = next((ops.get("get") for p, ops in (doc.get("paths") or {}).items()
-                   if isinstance(ops, dict) and "get" in ops and "{" in p), None) or {}
-    param_names = set()
-    for prm in get_op.get("parameters") or []:
-        if isinstance(prm, dict) and prm.get("in") == "path":
-            param_names |= example_names(prm)
-    resp200 = ((get_op.get("responses") or {}).get("200") or {}).get("content") or {}
-    resp_names = set()
-    for media in resp200.values():
-        resp_names |= example_names(media)
-    paired = param_names & resp_names
-    ex.append(E("GET uses plural named `examples`, request/response paired by name (>=2)",
-                len(paired) >= 2, f"param={sorted(param_names)} resp={sorted(resp_names)}"))
-    ex.append(E("Both known orders present with correct data",
-                all(v in text for v in ["abc123", "def456", "shipped", "pending", "45.5", "12"]),
-                "grep ids/statuses/totals"))
-
-    # 404 for ANY other id needs a FALLBACK dispatcher, not just a 404 example
-    ex.append(E("FALLBACK dispatcher configured so unknown ids get the 404 example",
-                "FALLBACK" in text and ("x-microcks-operation" in text or "fallback" in text),
-                "grep FALLBACK/x-microcks-operation"))
-    has_404 = "404" in json.dumps((get_op.get("responses") or {}), default=str)
-    ex.append(E("404 response with error example defined", has_404, "responses keys"))
-
-    # POST /orders: dynamic response via templating
     post_op = next((ops.get("post") for ops in (doc.get("paths") or {}).values()
                     if isinstance(ops, dict) and "post" in ops), None) or {}
-    post_str = json.dumps(post_op, default=str)
-    ex.append(E("POST response generates a fresh id via template function",
-                has_generator(post_str), "grep {{ guid()/uuid()/randomUUID() }} in POST"))
-    ex.append(E("POST response echoes request body fields via request.body templating",
-                "request.body" in post_str, "grep {{ request.body/... }} in POST"))
+    xmo = post_op.get("x-microcks-operation") or {}
+    ex.append(E("POST carries x-microcks-operation with a JSON_BODY dispatcher",
+                xmo.get("dispatcher") == "JSON_BODY", f"dispatcher={xmo.get('dispatcher')}"))
 
-    md = out / "MOCKING.md"
-    md_text = md.read_text().lower() if md.exists() else ""
-    ex.append(E("MOCKING.md runs Microcks via docker",
-                "docker" in md_text and "microcks" in md_text, "grep docker+microcks"))
-    ex.append(E("MOCKING.md curls the correct /rest/{name}/{version} mock URL",
-                any(u in md_text for u in
-                    ("rest/order+api/1.0", "rest/order%20api/1.0", "rest/order api/1.0")),
-                "grep rest/Order[+|%20| ]API/1.0"))
+    rules = xmo.get("dispatcherRules")
+    try:
+        rules = json.loads(rules) if isinstance(rules, str) else rules
+    except json.JSONDecodeError:
+        rules = None
+    cases = (rules or {}).get("cases") or {}
+    ex.append(E("Rules use operator 'range' on the /amount body pointer",
+                isinstance(rules, dict) and rules.get("exp") == "/amount"
+                and rules.get("operator") == "range",
+                f"exp={rules.get('exp') if isinstance(rules, dict) else rules} "
+                f"op={(rules or {}).get('operator') if isinstance(rules, dict) else ''}"))
+    ex.append(E("Range cases use [..;..] bracket syntax and include a default",
+                any("[" in k or "]" in k for k in cases) and "default" in cases,
+                f"case keys={sorted(cases)}"))
+
+    resp_names = response_example_names(post_op)
+    ex.append(E("Every case maps to a response example that actually exists",
+                bool(cases) and set(map(str, cases.values())) <= resp_names,
+                f"cases->{sorted(map(str, cases.values()))} examples={sorted(resp_names)}"))
+    ex.append(E("201, 202 and 422 responses all defined with examples",
+                {"201", "202", "422"} <= set(map(str, (post_op.get("responses") or {})))
+                and len(resp_names) >= 3, f"responses={sorted(post_op.get('responses') or {})}"))
+
+    post_str = json.dumps(post_op, default=str)
+    ex.append(E("Responses generate a fresh application id via template function",
+                has_generator(post_str), "grep {{ guid()/uuid()/randomUUID() }} in POST"))
+    ex.append(E("Responses echo the submitted amount via request.body templating",
+                "request.body" in post_str, "grep {{ request.body/amount }} in POST"))
     return ex
 
 
@@ -143,7 +153,6 @@ def grade_async(out):
     ex.append(E("user/signedup channel mocked in the emitting direction "
                 "(2.x subscribe / 3.x send)", chan is not None and emitting, evidence))
 
-    # two named examples with conformant payloads
     def walk_examples(node):
         found = []
         if isinstance(node, dict):
@@ -170,8 +179,7 @@ def grade_async(out):
                 "x-microcks-operation" in text and "frequency" in text and "5" in text.split("frequency")[-1][:20],
                 "grep x-microcks-operation frequency"))
 
-    md = out / "EVENTS.md"
-    md_text = md.read_text().lower() if md.exists() else ""
+    md_text = all_md_text(out)
     ex.append(E("EVENTS.md runs Microcks via docker",
                 "docker" in md_text and "microcks" in md_text, "grep docker+microcks"))
     ex.append(E("EVENTS.md points at the broker-free WebSocket mock endpoint",
@@ -180,7 +188,105 @@ def grade_async(out):
     return ex
 
 
-GRADERS = {"eval-0": grade_rest, "eval-1": grade_async}
+def grade_overlay(out):
+    ex = []
+    spec = out / "inventory-api-generated.yaml"
+    fixture = FIXTURES / "inventory-api-generated.yaml"
+    ex.append(E("Generated spec left byte-identical",
+                spec.exists() and spec.read_bytes() == fixture.read_bytes(),
+                "compared against fixture"))
+
+    p, exdoc = find_by_kind(out, "APIExamples")
+    if exdoc is None:
+        ex.append(E("APIExamples overlay produced", False, "no kind: APIExamples yaml found"))
+        return ex
+    meta = exdoc.get("metadata") or {}
+    ex.append(E("APIExamples identity matches the spec (Inventory API 2.3.0)",
+                str(exdoc.get("apiVersion", "")).startswith("mocks.microcks.io")
+                and meta.get("name") == "Inventory API" and str(meta.get("version")) == "2.3.0",
+                f"apiVersion={exdoc.get('apiVersion')} name={meta.get('name')} "
+                f"version={meta.get('version')}"))
+
+    ops = exdoc.get("operations") or {}
+    get_key = next((k for k in ops if "{sku}" in k), None)
+    post_key = next((k for k in ops if "reservations" in k.lower()), None)
+    ostr = json.dumps(ops, default=str)
+    ex.append(E("Both operations covered, keyed by 'VERB /path'",
+                get_key is not None and post_key is not None, f"keys={sorted(ops)}"))
+    ex.append(E("WIDGET-1 and GADGET-7 item exchanges with the requested data",
+                all(v in ostr for v in ("WIDGET-1", "GADGET-7", "Widget", "Gadget", "42", "0")),
+                "grep skus/names/stock"))
+    known404 = json.dumps((ops.get(get_key) or {}), default=str)
+    ex.append(E("MISSING-0 exchange returns the 404",
+                "MISSING-0" in known404 and "404" in known404, "grep MISSING-0 + 404"))
+    resv = json.dumps((ops.get(post_key) or {}), default=str)
+    ex.append(E("Reservation response has a templated id and echoes sku/quantity",
+                has_generator(resv) and "request.body" in resv,
+                "grep generator + request.body in reservation"))
+
+    _, mdoc = find_by_kind(out, "APIMetadata")
+    if mdoc is None:
+        ex.append(E("APIMetadata overlay with delay and label", False,
+                    "no kind: APIMetadata yaml found"))
+    else:
+        mmeta = mdoc.get("metadata") or {}
+        mstr = json.dumps(mdoc, default=str)
+        ex.append(E("APIMetadata sets the 150ms delay and domain=inventory label",
+                    mmeta.get("name") == "Inventory API" and str(mmeta.get("version")) == "2.3.0"
+                    and "150" in mstr and (mmeta.get("labels") or {}).get("domain") == "inventory",
+                    f"labels={mmeta.get('labels')} grep 150"))
+
+    md_text = all_md_text(out)
+    ex.append(E("Import instructions load spec as main, overlays as secondary",
+                ("mainartifact=true" in md_text.replace('"', "").replace("'", "")
+                 or ":true" in md_text)
+                and ("mainartifact=false" in md_text.replace('"', "").replace("'", "")
+                     or ":false" in md_text),
+                "grep mainArtifact=true/false or cli :true/:false"))
+    return ex
+
+
+def grade_testcontainers(out):
+    ex = []
+    test = out / "order-client.integration.test.ts"
+    if not test.exists():
+        test = next((p for p in sorted(out.rglob("*.ts")) + sorted(out.rglob("*.js"))
+                     if "microcks" in p.read_text().lower()), None)
+    if test is None:
+        return [E("Integration test file produced", False, "no test file using microcks found")]
+    code = test.read_text()
+    ex.append(E("Uses the @microcks/microcks-testcontainers module",
+                "microcks-testcontainers" in code and "MicrocksContainer" in code,
+                "grep import + MicrocksContainer"))
+    ex.append(E("Imports order-api.yaml into the container as a main artifact",
+                "withMainArtifact" in code and "order-api.yaml" in code,
+                "grep withMainArtifacts(order-api.yaml)"))
+    ex.append(E("Derives the mock base URL via getRestMockEndpoint('Order API','1.0')",
+                "getRestMockEndpoint" in code and "Order API" in code and "1.0" in code,
+                "grep getRestMockEndpoint"))
+    ex.append(E("OrderClient exercised against both known orders",
+                "OrderClient" in code and "abc123" in code and "def456" in code
+                and "shipped" in code and "pending" in code,
+                "grep client + order assertions"))
+    ex.append(E("Contract test uses testEndpoint with the OPEN_API_SCHEMA runner",
+                "testEndpoint" in code and "OPEN_API_SCHEMA" in code
+                and "localhost:3000" in code, "grep testEndpoint + runner + SUT url"))
+    ex.append(E("No hand-built mock URLs (no /rest/... or fixed Microcks port)",
+                "rest/order" not in code.lower().replace(" ", "").replace("+", "")
+                and "8585" not in code and "localhost:8080" not in code,
+                "grep hardcoded rest paths/ports"))
+    md_text = all_md_text(out)
+    ex.append(E("README-TESTS.md covers installing the Testcontainers module",
+                "microcks-testcontainers" in md_text, "grep install command"))
+    return ex
+
+
+GRADERS = {
+    "eval-0": grade_json_body,
+    "eval-1": grade_async,
+    "eval-2": grade_overlay,
+    "eval-3": grade_testcontainers,
+}
 
 
 def main():
