@@ -4,19 +4,15 @@ Last run: 20260902-161403 UTC via `task eval:skills NAME=gherkin-feature-authori
 
 Models served: claude-haiku-4-5-20251001, claude-sonnet-5.
 
-| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |
-|------|-----------|----------|-------------------|-------------------|
-| story-to-feature | 8/8 | 7/8 | 28.0s / 11.1s | $0.13 / $0.06 |
-| review-and-rewrite | 9/9 | 9/9 | 93.2s / 67.3s | $0.25 / $0.16 |
+| Eval | With skill | Baseline | Turns (skill/base) | Time (skill/base) | Cost (skill/base) |
+|------|-----------|----------|--------------------|-------------------|-------------------|
+| story-to-feature | 8/8 | 7/8 | 5 / 2 | 28.0s / 11.1s | $0.13 / $0.06 |
+| review-and-rewrite | 9/9 | 9/9 | 10 / 5 | 93.2s / 67.3s | $0.25 / $0.16 |
+
+Grader checks that separated the arms: story-to-feature 1/8, review-and-rewrite 0/9. A check both arms always pass measures nothing; a score delta with none separating is noise.
+Token cost, with skill / baseline: 1.71x. Turns above the baseline usually mean SKILL.md loads bundled files unconditionally.
 
 Full outputs (gitignored): `.evals/gherkin-feature-authoring/20260902-161403/`.
-
-Second sample, same skill version, same model (`20260902-161010`):
-
-| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |
-|------|-----------|----------|-------------------|-------------------|
-| story-to-feature | 8/8 | 7/8 | 25.3s / 13.6s | $0.11 / $0.07 |
-| review-and-rewrite | 9/9 | 7/9 | 106.3s / 79.2s | $0.28 / $0.19 |
 
 ## Notes: making the skill cheaper (2026-09-02)
 

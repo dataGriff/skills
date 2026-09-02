@@ -149,29 +149,63 @@ def write_results_summary(
         "",
         f"Models served: {', '.join(sorted(served)) or 'not recorded'}.",
         "",
-        "| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |",
-        "|------|-----------|----------|-------------------|-------------------|",
+        "| Eval | With skill | Baseline | Turns (skill/base) | Time (skill/base) | Cost (skill/base) |",
+        "|------|-----------|----------|--------------------|-------------------|-------------------|",
     ]
+    separating: list[str] = []
+    tokens = {"with_skill": 0, "without_skill": 0}
     for eval_dir in sorted(iteration.glob("eval-*")):
-        cells = {}
+        cells, expectations = {}, {}
         for arm in ("with_skill", "without_skill"):
             g, r = eval_dir / arm / "grading.json", eval_dir / arm / "run.json"
-            score, secs, cost = "?", "?", "?"
+            score, turns, secs, cost = "?", "?", "?", "?"
             if g.is_file():
-                s = json.loads(g.read_text()).get("summary", {})
+                graded = json.loads(g.read_text())
+                s = graded.get("summary", {})
                 score = f"{s.get('passed', '?')}/{s.get('total', '?')}"
+                expectations[arm] = graded.get("expectations", [])
             if r.is_file():
                 run = json.loads(r.read_text())
+                turns = run.get("num_turns", "?")
                 secs = f"{run.get('duration_seconds', '?')}s"
                 usd = run.get("total_cost_usd")
                 cost = f"${usd:.2f}" if isinstance(usd, (int, float)) else "?"
-            cells[arm] = (score, secs, cost)
-        w, b = cells.get("with_skill", ("?",) * 3), cells.get("without_skill", ("?",) * 3)
+                tokens[arm] += run.get("tokens") or 0
+            cells[arm] = (score, turns, secs, cost)
+        w, b = cells.get("with_skill", ("?",) * 4), cells.get("without_skill", ("?",) * 4)
         name = eval_dir.name.split("-", 2)[-1]
-        lines.append(f"| {name} | {w[0]} | {b[0]} | {w[1]} / {b[1]} | {w[2]} / {b[2]} |")
+        lines.append(
+            f"| {name} | {w[0]} | {b[0]} | {w[1]} / {b[1]} | {w[2]} / {b[2]} | {w[3]} / {b[3]} |"
+        )
+        if "with_skill" in expectations and "without_skill" in expectations:
+            pairs = list(zip(expectations["with_skill"], expectations["without_skill"]))
+            differ = sum(1 for a, c in pairs if a.get("passed") != c.get("passed"))
+            separating.append(f"{name} {differ}/{len(pairs)}")
+    lines.append("")
+    if separating:
+        lines.append(
+            "Grader checks that separated the arms: " + ", ".join(separating)
+            + ". A check both arms always pass measures nothing; a score delta "
+            "with none separating is noise."
+        )
+    if tokens["without_skill"]:
+        ratio = tokens["with_skill"] / tokens["without_skill"]
+        lines.append(
+            f"Token cost, with skill / baseline: {ratio:.2f}x. Turns above the "
+            "baseline usually mean SKILL.md loads bundled files unconditionally."
+        )
     lines += ["", f"Full outputs (gitignored): `.evals/{skill_dir.name}/{stamp}/`.", ""]
-    (skill_dir / "evals" / "latest-results.md").write_text("\n".join(lines), encoding="utf-8")
-    print(f"  summary → {skill_dir.relative_to(REPO_ROOT)}/evals/latest-results.md")
+
+    # Keep any hand-written sections (## headings) from the previous file:
+    # the generated block above is regenerated every run, the notes are not.
+    out = skill_dir / "evals" / "latest-results.md"
+    if out.is_file():
+        previous = out.read_text(encoding="utf-8").splitlines()
+        first_section = next((i for i, l in enumerate(previous) if l.startswith("## ")), None)
+        if first_section is not None:
+            lines += previous[first_section:] + [""]
+    out.write_text("\n".join(lines), encoding="utf-8")
+    print(f"  summary → {out.relative_to(REPO_ROOT)}")
 
 
 def main() -> int:

@@ -16,7 +16,8 @@ local and remote can never disagree about what gets checked.
   frontmatter validity, name/directory match, description states capability
   then trigger context, 500-line SKILL.md budget, referenced files exist,
   no orphaned bundled files, reference-doc links resolve, ToCs on large
-  references.
+  references, and (warning) SKILL.md phrasing that loads a bundled file on
+  every use — see the cost-discipline rules in [skills.md](skills.md).
 - `task check:context` (`scripts/check_context.py`) — context-size budgets:
   README/AGENTS/docs/index line+token limits, `CLAUDE.md == @AGENTS.md`,
   topic doc size, SKILL.md token budget.

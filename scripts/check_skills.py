@@ -58,6 +58,20 @@ BUNDLED_DIRS = ("references", "scripts", "assets")
 # capability.
 MIN_CAPABILITY_PREFIX_CHARS = 40
 
+# Phrasing that makes the model load a bundled file on *every* use. Each
+# unconditional load is an extra tool turn per invocation: on
+# gherkin-feature-authoring three of them doubled time and tokens for no
+# score change. Warn so the author makes the load conditional or inlines
+# the essential part.
+UNCONDITIONAL_LOAD_CUES = re.compile(
+    r"\b(start from|copy (it|this|the template)|first,? read|always (read|load|open)|"
+    r"must (read|load|open)|before (you )?(start|writ|doing|anything)|"
+    r"on every (use|invocation)|walk the checklist)\b",
+    re.I,
+)
+BUNDLED_PATH_PATTERN = re.compile(r"\b(references|assets|scripts)/")
+SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
 
 def parse_frontmatter(text: str) -> dict[str, str] | None:
     """Minimal YAML frontmatter parser (flat key: value pairs only)."""
@@ -144,6 +158,17 @@ def check_skill(skill_dir: Path, errors: list[str], warnings: list[str]) -> None
                     "clause. State what the skill does first, then when to "
                     "use it — both halves drive correct triggering."
                 )
+
+    # Unconditional loads of bundled files cost a tool turn on every use.
+    body = text.split("\n---", 2)[-1] if fm is not None else text
+    for sentence in SENTENCE_SPLIT.split(" ".join(body.split())):
+        if UNCONDITIONAL_LOAD_CUES.search(sentence) and BUNDLED_PATH_PATTERN.search(sentence):
+            snippet = sentence if len(sentence) <= 90 else sentence[:87] + "..."
+            warnings.append(
+                f"{rel}/SKILL.md: \"{snippet}\" loads a bundled file on every "
+                "use — an extra tool turn per invocation. Make it conditional "
+                "('open X when ...') or inline the part every use needs."
+            )
 
     # Referenced files must exist.
     for match in REFERENCED_PATH_PATTERN.finditer(text):
