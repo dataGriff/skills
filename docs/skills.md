@@ -53,7 +53,9 @@ A skill is paid for on every trigger, so cost is a design input. What the
 - **Unconditional loads are the cost driver, not file size.** "Start from
   the template", "read style.md before writing", "walk the checklist" each
   add a tool turn per use; three of them doubled time and tokens for no
-  score change. `task check:skills` warns on that phrasing. Put the rules
+  score change. `task check:skills` warns on that phrasing, and on any read
+  of a bundled file inside a numbered workflow step that carries no
+  condition — steps execute on every run whatever the wording. Put the rules
   that change outcomes in SKILL.md with a short inline example, and make
   every reference opt-in with an explicit "open when …" condition.
 - **Measure turns, not just tokens.** `latest-results.md` shows turns per

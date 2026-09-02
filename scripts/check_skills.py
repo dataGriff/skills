@@ -15,6 +15,9 @@ Checks (per skill):
   in SKILL.md or a reference doc - unmentioned files are invisible to agents
 - relative markdown links inside reference docs resolve to real files
 - large reference files (> 300 lines) carry a table of contents (warning only)
+- SKILL.md does not load bundled files on every use: no unconditional cue
+  phrasing ("start from the template", "read X before writing") and no reads
+  inside numbered workflow steps without a stated condition (warning only)
 
 Exit code 1 on any error; warnings do not fail the run.
 Run via `task check:skills` — do not invoke ad hoc variants of these checks.
@@ -71,6 +74,40 @@ UNCONDITIONAL_LOAD_CUES = re.compile(
 )
 BUNDLED_PATH_PATTERN = re.compile(r"\b(references|assets|scripts)/")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+# Numbered workflow steps are executed in order on every run, so a bundled
+# path inside a step is an unconditional load however it is phrased -
+# "Read references/schema.md for the full field set" and a bare pointer
+# like "Syntax details: references/syntax.md" cost the same turn. Only a
+# stated condition in the same sentence makes it opt-in.
+NUMBERED_STEP = re.compile(r"^\s*(\d+)[.)]\s+(.*)$")
+CONDITION_CUES = re.compile(
+    r"\b(when|if|only|unless|in case|as needed|optional(ly)?|where (you )?need|"
+    r"whenever|should you|for anything not covered)\b",
+    re.I,
+)
+
+
+def workflow_step_reads(body: str) -> list[tuple[str, str]]:
+    """Sentences inside numbered steps that name a bundled file without a
+    condition. Returns (step number, sentence) pairs."""
+    steps: list[tuple[str, list[str]]] = []
+    current: tuple[str, list[str]] | None = None
+    for line in body.splitlines():
+        match = NUMBERED_STEP.match(line)
+        if match:
+            current = (match.group(1), [match.group(2)])
+            steps.append(current)
+        elif current and line.strip() and line[:1].isspace() and not line.lstrip().startswith("#"):
+            current[1].append(line.strip())  # wrapped continuation of the step
+        else:
+            current = None  # blank line, heading, or unindented prose ends the step
+    found = []
+    for number, parts in steps:
+        for sentence in SENTENCE_SPLIT.split(" ".join(parts)):
+            if BUNDLED_PATH_PATTERN.search(sentence) and not CONDITION_CUES.search(sentence):
+                found.append((number, sentence))
+    return found
 
 
 def parse_frontmatter(text: str) -> dict[str, str] | None:
@@ -161,14 +198,26 @@ def check_skill(skill_dir: Path, errors: list[str], warnings: list[str]) -> None
 
     # Unconditional loads of bundled files cost a tool turn on every use.
     body = text.split("\n---", 2)[-1] if fm is not None else text
+    flagged: set[str] = set()
     for sentence in SENTENCE_SPLIT.split(" ".join(body.split())):
         if UNCONDITIONAL_LOAD_CUES.search(sentence) and BUNDLED_PATH_PATTERN.search(sentence):
+            flagged.add(sentence)
             snippet = sentence if len(sentence) <= 90 else sentence[:87] + "..."
             warnings.append(
                 f"{rel}/SKILL.md: \"{snippet}\" loads a bundled file on every "
                 "use — an extra tool turn per invocation. Make it conditional "
                 "('open X when ...') or inline the part every use needs."
             )
+    # Reads inside numbered workflow steps are unconditional by position.
+    for number, sentence in workflow_step_reads(body):
+        if sentence in flagged:
+            continue
+        snippet = sentence if len(sentence) <= 90 else sentence[:87] + "..."
+        warnings.append(
+            f"{rel}/SKILL.md: workflow step {number} reads a bundled file on "
+            f"every run: \"{snippet}\". Numbered steps always execute — add a "
+            "condition ('when ...') or inline what every run needs."
+        )
 
     # Referenced files must exist.
     for match in REFERENCED_PATH_PATTERN.finditer(text):
