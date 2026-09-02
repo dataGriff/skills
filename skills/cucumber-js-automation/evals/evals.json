@@ -1,0 +1,20 @@
+{
+  "skill_name": "cucumber-js-automation",
+  "allowed_tools": ["Bash(npm *)", "Bash(npx *)", "Bash(node *)"],
+  "evals": [
+    {
+      "id": 0,
+      "name": "implement-steps",
+      "prompt": "account-withdrawal.feature (in the current directory) is our signed-off spec for the bank account withdrawal flow. Set up cucumber-js in this directory, implement the account module and the step definitions, and get the whole suite passing with npx cucumber-js. The feature file is the spec - don't change it.",
+      "expected_output": "Working cucumber-js project: step definitions bound via Cucumber expressions, state on the World, suite green, feature untouched",
+      "files": ["account-withdrawal.feature"]
+    },
+    {
+      "id": 1,
+      "name": "spec-and-steps",
+      "prompt": "cart.js (in the current directory) implements our shopping cart pricing rules - the comment at the top states them. We practise BDD: write a Gherkin feature file covering the pricing rules and implement cucumber-js step definitions against cart.js so the whole suite passes with npx cucumber-js.",
+      "expected_output": "Declarative feature covering discount and delivery rules plus passing cucumber-js step definitions using World state",
+      "files": ["cart.js"]
+    }
+  ]
+}
