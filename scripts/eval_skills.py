@@ -2,8 +2,13 @@
 """Run with/without-skill evals for skills that define them.
 
 Usage (via the Taskfile — the canonical entrypoint):
-    task eval:skills             # every skill with an evals/evals.json
-    task eval:skills NAME=x      # one skill
+    task eval:skills                        # every skill with an evals/evals.json
+    task eval:skills NAME=x                 # one skill
+    task eval:skills NAME=x MODEL=sonnet    # pin both arms to one model
+
+MODEL is passed straight to `claude -p --model`; omit it to use the CLI's
+own default. Pin it when you want a reproducible comparison on a specific
+model rather than whatever the headless default happens to be.
 
 For each eval prompt this runs two headless `claude -p` sessions — one told
 to read and follow the skill, one without it — into
@@ -46,11 +51,14 @@ standalone task; do not read files under {skills_dir}.
 """
 
 
-def run_claude(prompt: str, cwd: Path) -> dict:
+def run_claude(prompt: str, cwd: Path, model: str | None = None) -> dict:
+    cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
+           "--output-format", "json"]
+    if model:
+        cmd += ["--model", model]
     start = time.time()
     result = subprocess.run(
-        ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
-         "--output-format", "json"],
+        cmd,
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -76,7 +84,7 @@ def run_claude(prompt: str, cwd: Path) -> dict:
     return info
 
 
-def run_skill_evals(skill_dir: Path) -> Path | None:
+def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
     evals_file = skill_dir / "evals" / "evals.json"
     spec = json.loads(evals_file.read_text(encoding="utf-8"))
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -97,7 +105,7 @@ def run_skill_evals(skill_dir: Path) -> Path | None:
                 skill_dir=skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
-            info = run_claude(prompt, outputs)
+            info = run_claude(prompt, outputs, model)
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
             print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
 
@@ -107,18 +115,22 @@ def run_skill_evals(skill_dir: Path) -> Path | None:
         subprocess.run([sys.executable, str(grader), str(iteration)], check=False)
     else:
         print(f"  no grader — compare outputs manually under {iteration}")
-    write_results_summary(skill_dir, iteration, stamp)
+    write_results_summary(skill_dir, iteration, stamp, model)
     return iteration
 
 
-def write_results_summary(skill_dir: Path, iteration: Path, stamp: str) -> None:
+def write_results_summary(
+    skill_dir: Path, iteration: Path, stamp: str, model: str | None = None
+) -> None:
     """Write evals/latest-results.md — committed, so eval results show up in
     the pull request diff alongside the skill change that prompted the run."""
+    model_suffix = f" MODEL={model}" if model else ""
     lines = [
         f"# Eval results: {skill_dir.name}",
         "",
-        f"Last run: {stamp} UTC via `task eval:skills NAME={skill_dir.name}` "
-        "(commit this file with the skill change so the PR carries the evidence).",
+        f"Last run: {stamp} UTC via `task eval:skills NAME={skill_dir.name}"
+        f"{model_suffix}` (commit this file with the skill change so the PR "
+        "carries the evidence).",
         "",
         "| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |",
         "|------|-----------|----------|-------------------|-------------------|",
@@ -155,6 +167,7 @@ def main() -> int:
         return 2
 
     name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else None
+    model = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
     if name:
         targets = [SKILLS_DIR / name]
         if not (targets[0] / "evals" / "evals.json").is_file():
@@ -169,8 +182,8 @@ def main() -> int:
             return 0
 
     for skill_dir in targets:
-        print(f"Evaluating {skill_dir.name}:")
-        run_skill_evals(skill_dir)
+        print(f"Evaluating {skill_dir.name}" + (f" on {model}" if model else "") + ":")
+        run_skill_evals(skill_dir, model)
     print(f"\nResults under {EVAL_ROOT.relative_to(REPO_ROOT)}/ (gitignored).")
     return 0
 

@@ -36,9 +36,9 @@ tasks:
       - "{{.PYTHON}} scripts/new_skill.py {{.NAME}}"
 
   eval:skills:
-    desc: "Run with/without-skill evals via the claude CLI: task eval:skills [NAME=my-skill]"
+    desc: "Run with/without-skill evals via the claude CLI: task eval:skills [NAME=my-skill] [MODEL=sonnet]"
     cmds:
-      - "{{.PYTHON}} scripts/eval_skills.py {{.NAME}}"
+      - "{{.PYTHON}} scripts/eval_skills.py {{.NAME}} {{.MODEL}}"
 
   pr:eval-summary:
     desc: "Markdown eval-evidence summary for skills changed vs BASE (default origin/main): task pr:eval-summary [BASE=...]"
