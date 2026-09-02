@@ -81,6 +81,10 @@ def run_claude(
         info["duration_seconds"] = round(payload.get("duration_ms", 0) / 1000, 1) or info["duration_seconds"]
         info["num_turns"] = payload.get("num_turns")
         info["total_cost_usd"] = payload.get("total_cost_usd")
+        # Which models actually served the run — the CLI default can change
+        # between runs (e.g. after /model in an interactive session), so a
+        # results table without this is not comparable across runs.
+        info["models"] = sorted((payload.get("modelUsage") or {}).keys())
         usage = payload.get("usage") or {}
         info["tokens"] = sum(
             v for k, v in usage.items() if isinstance(v, (int, float)) and "tokens" in k
@@ -133,12 +137,17 @@ def write_results_summary(
     """Write evals/latest-results.md — committed, so eval results show up in
     the pull request diff alongside the skill change that prompted the run."""
     model_suffix = f" MODEL={model}" if model else ""
+    served: set[str] = set()
+    for run_file in iteration.glob("eval-*/*/run.json"):
+        served.update(json.loads(run_file.read_text()).get("models") or [])
     lines = [
         f"# Eval results: {skill_dir.name}",
         "",
         f"Last run: {stamp} UTC via `task eval:skills NAME={skill_dir.name}"
         f"{model_suffix}` (commit this file with the skill change so the PR "
         "carries the evidence).",
+        "",
+        f"Models served: {', '.join(sorted(served)) or 'not recorded'}.",
         "",
         "| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |",
         "|------|-----------|----------|-------------------|-------------------|",

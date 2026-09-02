@@ -35,11 +35,14 @@ open the references only in the cases listed at the end.
    text.
 4. **Independent scenarios.** Each passes alone and in any order; if B
    needs what A did, fold it into B's Givens.
-5. **Rewrites preserve every behaviour.** When restructuring an existing
-   file, every behaviour the original exercised gets its own scenario in
-   the result — dropping one is silent requirements loss. Where the
-   original states no expected outcome, don't invent one silently: write
-   the most plausible outcome and flag it as a question for the business.
+5. **Rewrites preserve every behaviour.** Each event the original
+   exercised — a payment, a *view* of order history, a rejected checkout —
+   keeps its own scenario with its own When, even when you could assert
+   its outcome inside another scenario's Then. A Then cannot stand in for
+   the event that reveals it, and folding or dropping one is silent
+   requirements loss. Where the original states no expected outcome, don't
+   invent one silently: write the most plausible outcome and flag it as a
+   question for the business.
 6. **Reuse step phrasing verbatim**, varying only values — every new
    wording is a new step definition to automate. Scenarios that differ
    only in data become one Scenario Outline.
@@ -71,11 +74,22 @@ The Feature description says who needs this and why. `Background` is for
 short, Given-only setup every scenario needs. Scenario names state the
 point ("Withdrawal exceeding the balance"), never "Test 3".
 
+## Naming the smells in a review
+
+A review write-up can cite these directly, no reference needed:
+**imperative UI script** (clicks, URLs, field names) · **journey scenario**
+(several When/Then cycles) · **conjunctive step** ("… and … and …") ·
+**scenario chaining** (depends on another scenario having run) · **missing
+Then** (nothing proven) · **technical setup in the spec** (database
+cleared, mocks) · **incidental detail / test-jargon data** · **meaningless
+names** ("Test 1") and **no feature narrative** · **outline abuse** (one
+row, constant columns, mixed accepted/rejected rows).
+
 ## When to open the references
 
-- [references/style.md](references/style.md) — when reviewing or rewriting
-  someone else's file and you need the anti-pattern names and rewrites, or
-  the full pre-delivery checklist.
+- [references/style.md](references/style.md) — only for the worked
+  before/after rewrites of each smell or the full pre-delivery checklist;
+  the names above are enough for a review.
 - [references/syntax.md](references/syntax.md) — for a construct you don't
   use daily: data tables, doc strings, tags, multiple Examples blocks,
   `# language:`, escaping.
