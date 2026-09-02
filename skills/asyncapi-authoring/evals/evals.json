@@ -1,0 +1,29 @@
+{
+  "skill_name": "asyncapi-authoring",
+  "allowed_tools": ["Bash(asyncapi *)", "Bash(spectral *)"],
+  "evals": [
+    {
+      "id": 0,
+      "name": "author-inventory-asyncapi",
+      "prompt": "We're documenting our event-driven services with AsyncAPI. Write the AsyncAPI document for our inventory service. It runs against Kafka (prod broker kafka.internal.acme.dev:9092). The service consumes order events from topic orders.placed.v1 (payload: orderId uuid, items array of {sku string, quantity integer >= 1}, placedAt timestamp) in consumer group inventory-service, and publishes stock level events to topic inventory.stock-level.v1 (payload: sku string, warehouse string, quantity integer >= 0, updatedAt timestamp), with the Kafka record keyed by sku. Use the latest AsyncAPI version. Save it as inventory.asyncapi.yaml",
+      "expected_output": "Valid AsyncAPI 3.1.0 document: channels/operations split with correct send/receive directions, Kafka groupId and message key bindings, constrained payload schemas",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-legacy-asyncapi",
+      "prompt": "One of our teams wrote this AsyncAPI file a while back (legacy-notification-service.yaml, in the current directory). We're standardising on the latest AsyncAPI version and our conventions: no secrets in specs, every document has an owning contact, camelCase channel and operation ids. Review it, write a review.md listing what's wrong, and produce an upgraded version saved as notification-service.asyncapi.yaml. Keep the wire-level channel addresses unchanged.",
+      "expected_output": "Review catching the old spec version, the embedded credentials, and the publish/subscribe semantics; upgraded valid 3.1.0 document with correctly inverted send/receive operations and no secrets",
+      "files": [
+        "legacy-notification-service.yaml"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "author-request-reply-avro",
+      "prompt": "Write the AsyncAPI document for our payment-check service. It talks to RabbitMQ over AMQP (broker mq.internal.acme.dev:5672). The service sends payment authorization requests to the queue payments.authorize.request; each request names its reply queue in the replyTo application header, and the service receives the reply there (reply queues are created dynamically at runtime, so their address is not known upfront). Payloads are Avro 1.9.0 records: the request is record PaymentAuthRequest { paymentId: string, amountCents: long, currency: string } and the reply is record PaymentAuthReply { paymentId: string, approved: boolean, reason: optional string }. Requests and replies are correlated by a correlationId application header. Use the latest AsyncAPI version. Save it as payment-check.asyncapi.yaml",
+      "expected_output": "Valid AsyncAPI 3.1.0 request-reply: send operation with reply.address at $message.header#/replyTo, a null-address reply channel, Avro multi-format payload schemas, and a header-based correlationId",
+      "files": []
+    }
+  ]
+}
