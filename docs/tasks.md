@@ -36,6 +36,9 @@ Only when nothing existing covers the need:
 
 - `setup` → `hooks:install`
 - `check` → `check:skills` + `check:context`
-- `eval:skills` → with/without-skill effectiveness evals (on demand, not CI)
+- `eval:skills` → with/without-skill effectiveness evals (on demand, not CI;
+  `MODEL=` pins both arms to one model for a reproducible comparison)
+- `pr:eval-summary` → markdown eval evidence for changed skills (CI posts it
+  as a sticky PR comment)
 - `pre-commit` / `pre-push` → hook entrypoints
 - `ci` → everything GitHub Actions runs
