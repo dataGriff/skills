@@ -1,0 +1,19 @@
+{
+  "skill_name": "contract-testing-microcks",
+  "evals": [
+    {
+      "id": 0,
+      "name": "github-actions-contract-gate",
+      "prompt": "our team runs a shared Microcks instance at https://microcks.acme.io (Keycloak-secured). we keep our OpenAPI spec in the repo (order-api.openapi.yaml, current directory) and deploy the implementation to https://orders.staging.acme.io. write a github actions workflow that on every push (1) imports the committed spec into Microcks so it stays the source of truth and (2) runs a contract/conformance test of the staging deployment against the 'Order API' version 1.2.0 spec, failing the build when the implementation violates the contract. no credentials hardcoded. do not run any commands - just write the files: the workflow as contract-test.yml and a short setup.md explaining exactly which repo secrets to configure. save both in the current directory.",
+      "expected_output": "Workflow with real Microcks import + test steps (GitHub Actions or CLI), correct service reference, schema runner, credentials via secrets",
+      "files": ["order-api.openapi.yaml"]
+    },
+    {
+      "id": 1,
+      "name": "node-testcontainers-provider-test",
+      "prompt": "we're building a Node/TypeScript order service (runs locally on http://localhost:3001) described by order-api.openapi.yaml (current directory). write an integration test that uses Microcks via Testcontainers to (1) spin up Microcks inside the test run, load our spec, and expose the REST mock URL a consumer test could call, and (2) run a conformance/contract test verifying the running implementation at http://localhost:3001 respects the spec, failing the test when it does not. do not run or install anything - just write the files: the test as order-api.contract.test.ts and deps.md naming the exact npm package(s) to install. save both in the current directory.",
+      "expected_output": "Test using the real @microcks/microcks-testcontainers API: main artifact load, mock endpoint accessor, testEndpoint with schema runner, success assertion",
+      "files": ["order-api.openapi.yaml"]
+    }
+  ]
+}
