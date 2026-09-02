@@ -91,11 +91,14 @@ def grade_implement_steps(out):
     ex = []
     grade_glue(ex, out)
     original = (FIXTURES / "account-withdrawal.feature").read_text(encoding="utf-8")
-    produced = out / "account-withdrawal.feature"
-    unchanged = (produced.is_file()
-                 and produced.read_text(encoding="utf-8").split() == original.split())
+    # Moving the spec into the conventional features/ directory is fine —
+    # only its content is contractual.
+    produced = [p for p in project_files(out, (".feature",))
+                if p.name == "account-withdrawal.feature"]
+    unchanged = any(p.read_text(encoding="utf-8").split() == original.split()
+                    for p in produced)
     ex.append(E("account-withdrawal.feature left unchanged (it is the spec)",
-                unchanged, "missing" if not produced.is_file() else "diff vs fixture"))
+                unchanged, "missing" if not produced else "diff vs fixture"))
     return ex
 
 
@@ -125,7 +128,7 @@ GRADERS = {"eval-0": grade_implement_steps, "eval-1": grade_spec_and_steps}
 
 
 def main():
-    iteration = Path(sys.argv[1])
+    iteration = Path(sys.argv[1]).resolve()
     for eval_dir in sorted(iteration.glob("eval-*")):
         grader = GRADERS[eval_dir.name[:6]]
         for arm in ("with_skill", "without_skill"):
