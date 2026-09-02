@@ -57,10 +57,14 @@ every step is both bound and passing.
    Scenarios that reuse a phrasing with different values must hit the
    same definition — if a new step differs only in wording, align the
    feature wording rather than adding a near-duplicate definition.
-3. **State lives on the World (`this`), never module scope.** Each
-   scenario gets a fresh World, so scenarios stay independent and can run
-   in parallel. Module-level variables leak state between scenarios and
-   break under `--parallel`. Use `function () {}` for steps and hooks —
+3. **Scenario state lives on the World (`this`), never module scope.**
+   Each scenario gets a fresh World, so scenarios stay independent and
+   can run in parallel; module-level variables that steps mutate leak
+   state between scenarios and break under `--parallel`. The one
+   legitimate module-scope resident is a per-run resource created in
+   `BeforeAll`/`AfterAll` (which have no World) — a server handle, a
+   connection pool — and steps still only read it. Use `function () {}`
+   for steps and hooks —
    an arrow function cannot bind `this`, and every value it needed
    becomes invisible to the World.
 4. **Steps are thin; mechanics live below them.** A step definition maps

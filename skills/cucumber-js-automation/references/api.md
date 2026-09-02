@@ -28,7 +28,7 @@ projects (see [setup.md](setup.md)).
 | `{word}`      | one non-whitespace word (`Alice`)      | `string`              |
 | `{}`          | anything, non-greedy                   | `string`              |
 | `text/texts`  | alternative text: matches either       | — (not captured)      |
-| `mayb(es)`    | optional text: `mayb` or `maybes`      | — (not captured)      |
+| `maybe(s)`    | optional text: `maybe` or `maybes`     | — (not captured)      |
 | `\{` `\(`     | literal brace / parenthesis            | —                     |
 
 Alternation and optionals keep one definition serving several phrasings:
