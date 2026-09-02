@@ -186,7 +186,7 @@ GRADERS = {"eval-0": grade_rest, "eval-1": grade_async}
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
-        grader = GRADERS[eval_dir.name[:6]]
+        grader = GRADERS["-".join(eval_dir.name.split("-", 2)[:2])]
         for arm in ("with_skill", "without_skill"):
             out = eval_dir / arm / "outputs"
             if not out.is_dir():

@@ -73,7 +73,8 @@ Rules that follow from this:
                   value: { error: "No such pastry" }
 ```
 
-(with a matching `unknown: { value: NoSuchCake }` under the path parameter).
+(with a matching `unknown: { value: NoSuchPastry }` under the path
+parameter).
 
 ## Request bodies: `x-microcks-refs`
 
