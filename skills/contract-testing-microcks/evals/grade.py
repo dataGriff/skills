@@ -71,22 +71,29 @@ def grade_node_testcontainers(out):
     tests = list(out.glob("*.test.ts")) + list(out.glob("*.test.js"))
     code = "\n".join(read(t) for t in tests)
     text = code + "\n" + read(out / "deps.md")
+    pkg_mentions = sorted(set(re.findall(r"[@\w/-]*microcks[\w/-]*", text)))[:8]
     ex.append(E("Names the real npm package @microcks/microcks-testcontainers",
                 "@microcks/microcks-testcontainers" in text,
-                f"pkg-ish mentions={sorted(set(re.findall(r'[@\\w/-]*microcks[\\w/-]*', text)))[:8]}"))
+                f"pkg-ish mentions={pkg_mentions}"))
     ex.append(E("Starts MicrocksContainer and loads the spec as a main artifact",
                 "MicrocksContainer" in code
                 and bool(re.search(r"withMainArtifacts?\(|importAsMainArtifact\(", code)),
                 "grep MicrocksContainer + withMainArtifacts/importAsMainArtifact"))
     ex.append(E("Exposes the REST mock URL via getRestMockEndpoint",
                 "getRestMockEndpoint" in code, "grep getRestMockEndpoint"))
-    calls_test = "testEndpoint" in code and "Order API:1.2.0" in code \
-        and "OPEN_API_SCHEMA" in code and "localhost:3001" in code
-    ex.append(E("Runs the conformance test: testEndpoint with serviceId "
-                "'Order API:1.2.0', OPEN_API_SCHEMA runner, app URL",
+    # serviceId is often assembled from constants, so require the parts
+    # (name, version, a serviceId field, the app URL) rather than the literal.
+    calls_test = "testEndpoint" in code and "serviceId" in code \
+        and "Order API" in code and "1.2.0" in code and "localhost:3001" in code
+    ex.append(E("Runs the conformance test: testEndpoint with the service's "
+                "name+version as serviceId, against the app URL",
                 calls_test,
-                f"testEndpoint={'testEndpoint' in code} sid={'Order API:1.2.0' in code} "
-                f"runner={'OPEN_API_SCHEMA' in code} url={'localhost:3001' in code}"))
+                f"testEndpoint={'testEndpoint' in code} serviceId={'serviceId' in code} "
+                f"name={'Order API' in code} ver={'1.2.0' in code} url={'localhost:3001' in code}"))
+    runner_ids = sorted(set(re.findall(r"[A-Z][A-Z_]*SCHEMA", code)))
+    ex.append(E("Uses the real OPEN_API_SCHEMA runner id (not a hallucinated variant)",
+                bool(re.search(r"\bOPEN_API_SCHEMA\b", code)),
+                f"runner ids found={runner_ids}"))
     ex.append(E("Asserts on the test result's success flag",
                 bool(re.search(r"(testResult|result)\.success", code)),
                 "grep .success assertion"))
