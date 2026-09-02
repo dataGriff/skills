@@ -132,6 +132,12 @@ def grade_review_legacy(out):
         return [E("customers-api.openapi.yaml produced", False, "missing")]
     doc, s = grade_common(f, ex)
     ex.append(E("3.0-only `nullable:` removed", "nullable" not in s, "grep nullable"))
+    ex.append(E("Boolean exclusiveMinimum rewritten to the 3.1 numeric form",
+                not re.search(r'"exclusiveMinimum":\s*(true|false)', s),
+                "grep boolean exclusiveMinimum"))
+    bare = [p for p in (doc.get("paths") or {}) if re.search(r"\{id\}", p)]
+    ex.append(E("Path parameters resource-prefixed ({customerId}, not {id})",
+                doc.get("paths") and not bare, f"bare={bare}"))
     ex.append(E("Hardcoded API key removed", "sk_live_9f8a7b6c5d4e3f2a1b0c" not in f.read_text(),
                 "grep planted key"))
     if rv.exists():
