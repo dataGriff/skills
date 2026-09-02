@@ -61,7 +61,10 @@ def spectral_conventions(ex, f):
         ex.append(E("No errors from the skill's Spectral governance ruleset",
                     False, r.stderr[-300:] or "spectral produced no JSON"))
         return
-    errors = [x for x in results if x.get("severity") == 0]
+    # The authoring prompts name no owner, so a missing contact is honest
+    # rather than wrong — don't reward a fabricated one.
+    errors = [x for x in results
+              if x.get("severity") == 0 and x.get("code") != "org-info-contact"]
     ex.append(E("No errors from the skill's Spectral governance ruleset",
                 not errors,
                 "; ".join(f"{x.get('code')}@{x.get('path')}" for x in errors[:5])
