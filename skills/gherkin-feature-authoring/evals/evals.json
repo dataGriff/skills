@@ -1,0 +1,21 @@
+{
+  "skill_name": "gherkin-feature-authoring",
+  "evals": [
+    {
+      "id": 0,
+      "name": "story-to-feature",
+      "prompt": "we're adding a loyalty points scheme to our online shop and I need the cucumber feature file for it. story: as a shopper I want to earn points on my purchases so that I get money off future orders. acceptance criteria: shoppers earn 1 point per whole pound of the order total after discounts are applied; delivery fees never earn points; points are only awarded once the order has shipped, not at payment; an order paid entirely with points earns no points. write the feature file as loyalty-points.feature in the current directory.",
+      "expected_output": "Well-structured declarative feature file covering every acceptance criterion, one behaviour per scenario, no UI mechanics",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-and-rewrite",
+      "prompt": "our new tester wrote checkout.feature (in the current directory) for our online shop's checkout but it doesn't feel right - review it against gherkin best practice and rewrite it properly. save the improved version over checkout.feature and write review.md listing the problems you found in the original.",
+      "expected_output": "Rewrite removes UI scripting, splits multi-When journeys, fixes names/independence/missing outcomes; review names the smells",
+      "files": [
+        "checkout.feature"
+      ]
+    }
+  ]
+}

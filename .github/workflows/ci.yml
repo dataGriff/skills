@@ -19,3 +19,50 @@ jobs:
 
       - name: Run CI checks
         run: task ci
+
+  # Posts each changed skill's evals/latest-results.md onto the PR as a
+  # sticky comment, so eval evidence is always visible in the PR itself.
+  # The logic lives in `task pr:eval-summary` (runnable locally); this job
+  # only delivers its output to GitHub.
+  eval-summary:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools from mise.toml
+        uses: jdx/mise-action@v2
+
+      - name: Build eval summary for changed skills
+        run: task pr:eval-summary BASE=origin/${{ github.base_ref }} > eval-summary.md
+
+      - name: Upsert sticky PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('eval-summary.md', 'utf8').trim();
+            const marker = '<!-- eval-evidence-summary -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(
+              github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (!body) {
+              if (existing) await github.rest.issues.deleteComment(
+                { owner, repo, comment_id: existing.id });
+              return;
+            }
+            const full = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment(
+                { owner, repo, comment_id: existing.id, body: full });
+            } else {
+              await github.rest.issues.createComment(
+                { owner, repo, issue_number, body: full });
+            }
