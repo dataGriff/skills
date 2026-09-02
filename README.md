@@ -2,7 +2,8 @@
 
 A repository for creating and maintaining AI agent skills. One canonical
 copy per skill works in Claude Code, Codex, and GitHub Copilot — in-repo via
-committed symlinks, everywhere else via `task install:skills`
+committed symlinks, everywhere else via `task install:skills`, and for
+Claude Code alone via `/plugin marketplace add dataGriff/skills`
 ([docs/install.md](docs/install.md)).
 
 **Start here → [docs/index.md](docs/index.md)**

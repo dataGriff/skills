@@ -37,6 +37,24 @@ from other sources. The installer never touches entries it didn't create:
 anything that isn't a symlink into this clone is skipped with a warning, and
 uninstall removes only links pointing here.
 
+## Claude Code without cloning (plugin marketplace)
+
+`.claude-plugin/marketplace.json` makes this repo a Claude Code plugin
+marketplace whose single plugin is the repo itself (`source: "./"` with
+`strict: false`), so the canonical `skills/` directory doubles as the
+plugin's skills directory — still no duplication, and a new skill ships
+in the plugin with no manifest edit. Users install straight from GitHub:
+
+```
+/plugin marketplace add dataGriff/skills
+/plugin install datagriff-skills@datagriff
+```
+
+Updates arrive with `/plugin marketplace update datagriff`. This route is
+Claude-only — Codex and Copilot have no marketplace equivalent, so they use
+the symlink installs above. After editing the manifest, check it with
+`claude plugin validate .`.
+
 ## Caveats
 
 - **Windows**: git creates the committed symlinks only with
