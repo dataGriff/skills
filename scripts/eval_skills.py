@@ -136,7 +136,9 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             prompt = template.format(
                 skill_dir=eval_skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
-            add_dir = skill_dir if arm == "with_skill" else None
+            # Grant read access to the copy the prompt names, not the real
+            # skill dir — that would re-expose evals/ (the grader).
+            add_dir = eval_skill_dir if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
             info = run_claude(prompt, outputs, model, add_dir, allowed_tools)
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
