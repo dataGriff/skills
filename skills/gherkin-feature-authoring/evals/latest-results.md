@@ -1,47 +1,62 @@
 # Eval results: gherkin-feature-authoring
 
-Last run: 20260902-054258 UTC via `task eval:skills NAME=gherkin-feature-authoring MODEL=claude-sonnet-5` (commit this file with the skill change so the PR carries the evidence).
+Last run: 20260902-161403 UTC via `task eval:skills NAME=gherkin-feature-authoring MODEL=claude-sonnet-5` (commit this file with the skill change so the PR carries the evidence).
+
+Models served: claude-haiku-4-5-20251001, claude-sonnet-5.
 
 | Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |
 |------|-----------|----------|-------------------|-------------------|
-| story-to-feature | 8/8 | 7/8 | 39.9s / 19.8s | $0.15 / $0.07 |
-| review-and-rewrite | 9/9 | 9/9 | 65.2s / 53.1s | $0.19 / $0.13 |
+| story-to-feature | 8/8 | 7/8 | 28.0s / 11.1s | $0.13 / $0.06 |
+| review-and-rewrite | 9/9 | 9/9 | 93.2s / 67.3s | $0.25 / $0.16 |
 
-Full outputs (gitignored): `.evals/gherkin-feature-authoring/20260902-054258/`.
+Full outputs (gitignored): `.evals/gherkin-feature-authoring/20260902-161403/`.
 
-Notes: run pinned to `claude-sonnet-5` via the new `MODEL=` support in
-`task eval:skills`, after the session's default model changed. (A prior
-attempt at this pin scored 0/1 and 2/9 — not a real result: the headless
-CLI refused to read `/home/user/skills` at all under `acceptEdits`, a
-sandbox boundary the previous default model didn't hit. Fixed by passing
-`--add-dir` to the with-skill arm; see `scripts/eval_skills.py`.) With
-that fixed, the baseline again failed only the recurring `Rule:` block
-check on story-to-feature, but this time matched the skill 9/9 on
-review-and-rewrite — a genuinely good independent rewrite that kept all
-three behaviours. Consistent with the variance-benchmark finding below:
-on a strong model the skill's floor-raising effect shrinks to near zero on
-tasks the model already handles well unaided.
+Second sample, same skill version, same model (`20260902-161010`):
 
-## Variance benchmark (2026-09-02, 4 runs per eval per arm)
+| Eval | With skill | Baseline | Time (skill/base) | Cost (skill/base) |
+|------|-----------|----------|-------------------|-------------------|
+| story-to-feature | 8/8 | 7/8 | 25.3s / 13.6s | $0.11 / $0.07 |
+| review-and-rewrite | 9/9 | 7/9 | 106.3s / 79.2s | $0.28 / $0.19 |
 
-16 independent subagent runs (4 × story-to-feature, 4 × review-and-rewrite,
-with-skill vs no-skill), graded with the same grader:
+## Notes: making the skill cheaper (2026-09-02)
 
-| Metric | With skill | Baseline | Delta |
-|--------|-----------|----------|-------|
-| Pass rate | 100% ± 0% | 100% ± 0% | 0 |
-| Time | 68.3s ± 5.7s | 34.1s ± 15.4s | +34.1s |
-| Tokens | 49,540 ± 603 | 40,915 ± 1,228 | +8,626 (~21%) |
+The original SKILL.md forced three file loads per use (template, style.md,
+then a checklist walk): 6–8 tool turns against the baseline's 2–4. Two
+slimming passes moved the rules that actually changed outcomes into
+SKILL.md itself (explicit `Rule:` blocks, one When, preserve every
+behaviour in a rewrite with its own When, flag unknown outcomes as
+questions) plus an inline example and the smell names a review needs;
+references are now opt-in. Measured on Sonnet against the original:
 
-Every baseline run passed every check — including Rule: blocks and
-behaviour preservation, the checks baselines failed in earlier claude-CLI
-runs (see above and history). Those subagents ran on a stronger model
-than the CLI's headless default, so the honest conclusion is that the
-skill's measurable value is model-dependent: on a top-tier model these
-tasks saturate the grader with or without it (the skill then costs ~21%
-more tokens for no measured gain, confirmed again on the pinned Sonnet
-run above); on a weaker executor the baseline reliably dropped a
-behaviour or structure the skill preserved. What the grader cannot
-measure: with-skill runs consistently flagged the fixture's missing-Then
-scenario as an open question for the business instead of silently
-inventing an outcome; most baselines did not.
+- **story-to-feature**: 6 turns / $0.15 / 40s → 4–5 turns / $0.11–0.13 /
+  25–28s (≈25% cheaper, ≈35% faster), score unchanged at 8/8 while the
+  baseline scored 7/8 in both samples (no `Rule:` blocks — the one
+  consistent gap).
+- **review-and-rewrite**: not cheaper — 10–11 turns, ≈1.5× the baseline's
+  cost, the same ratio as before slimming (both arms drifted up in
+  absolute cost this run). The benefit here is the clearest we have: the
+  baseline folded or dropped the order-history behaviour in 2 of 5 Sonnet
+  samples across all runs; the skill with the sharpened rule 5 kept it in
+  every sample (an earlier slim-1 wording let it fold once — fixed).
+
+The remaining review-path cost is the model still opening references
+during reviews; the next lever would be forbidding that outright, at some
+risk to review quality. Not done — unmeasured changes are how the earlier
+false readings happened.
+
+## Caveats and history
+
+- **Model identity.** The CLI's headless default silently became
+  `claude-sonnet-5` mid-investigation (after a `/model` switch in the
+  interactive session), and the two earliest runs (2026-09-01, 2026-09-02
+  05:03) never recorded which model served them. Their baseline failures
+  (no `Rule:` blocks, dropped behaviour, two-When journey) are real but
+  cannot be attributed to a specific model. Every run now records served
+  models (see the header).
+- **Variance benchmark** (16 subagent runs on the session's own model, 4
+  per eval per arm, pre-slimming): 100% ± 0% pass rate in *both* arms;
+  skill cost +21% tokens, +34s. On that executor the tasks saturated the
+  grader with or without the skill.
+- **Single-sample runs are noisy** — the Sonnet baseline has scored
+  anywhere from 7/9 to 9/9 on the same rewrite task. Treat one-run deltas
+  as directional.
