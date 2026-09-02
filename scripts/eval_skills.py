@@ -51,11 +51,18 @@ standalone task; do not read files under {skills_dir}.
 """
 
 
-def run_claude(prompt: str, cwd: Path, model: str | None = None) -> dict:
+def run_claude(
+    prompt: str, cwd: Path, model: str | None = None, add_dir: Path | None = None
+) -> dict:
     cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
            "--output-format", "json"]
     if model:
         cmd += ["--model", model]
+    if add_dir:
+        # The with-skill prompt tells the model to read files under
+        # add_dir (the skill directory); some models otherwise refuse to
+        # read outside cwd even under acceptEdits.
+        cmd += ["--add-dir", str(add_dir)]
     start = time.time()
     result = subprocess.run(
         cmd,
@@ -104,8 +111,9 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             prompt = template.format(
                 skill_dir=skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
+            add_dir = skill_dir if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
-            info = run_claude(prompt, outputs, model)
+            info = run_claude(prompt, outputs, model, add_dir)
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
             print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
 
