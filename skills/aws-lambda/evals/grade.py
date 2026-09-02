@@ -90,9 +90,11 @@ def load_template(path):
 
 
 def function_properties(doc):
+    """Function Properties with SAM Globals.Function defaults merged under them."""
+    globals_fn = (doc.get("Globals") or {}).get("Function") or {}
     for res in (doc.get("Resources") or {}).values():
         if isinstance(res, dict) and res.get("Type") == "AWS::Serverless::Function":
-            return res.get("Properties") or {}
+            return {**globals_fn, **(res.get("Properties") or {})}
     return {}
 
 
