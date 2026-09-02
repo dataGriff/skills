@@ -16,10 +16,10 @@ description: >-
 
 # Data Contract CLI
 
-`datacontract` is the open-source Python CLI for enforcing data contracts.
-It reads **ODCS v3.x** (`.odcs.yaml`) directly; the current release line
-is 1.x. Everything below is enough for the everyday commands — open the
-references only for the cases listed at the end.
+`datacontract` is the open-source CLI (Python) for enforcing data
+contracts. It natively supports **ODCS v3.x** (v3.1, v3.0; also validates
+v2.2.x) — a `.odcs.yaml` file is used directly, no conversion needed. As of
+2026 the current release line is 1.x.
 
 ## Install
 
@@ -29,102 +29,68 @@ pip install 'datacontract-cli[all]'                                     # or pip
 docker run --rm -v "${PWD}:/home/datacontract" datacontract/cli:latest  # or docker
 ```
 
-`[all]` bundles every connector; in constrained environments install only
-the extra matching the source (`[postgres]`, `[snowflake]`, `[bigquery]`,
-`[databricks]`, `[s3]`, `[duckdb]`, `[kafka]`, `[csv]`, `[parquet]`…).
-The base install still lints, exports most formats, and diffs. A missing
-extra surfaces as an import error when testing — install it, don't debug.
+`[all]` bundles every connector. In constrained environments install only
+the extras needed (e.g. `datacontract-cli[postgres]`,
+`[snowflake]`, `[databricks]`, `[s3]`, `[duckdb]`, `[kafka]`, `[excel]`,
+`[csv]`, `[parquet]`…) — the base install still lints, exports most
+formats, and diffs.
 
 ## Core loop
 
 ```bash
-datacontract init orders.odcs.yaml                  # scaffold (ODCS v3.1.0)
-datacontract lint orders.odcs.yaml --all-errors     # validate; default stops at first error
-datacontract test orders.odcs.yaml [--server prod] [--schema-name orders]
-datacontract changelog v1.odcs.yaml v2.odcs.yaml    # diff, flags breaking changes
+datacontract init orders.odcs.yaml            # scaffold (ODCS v3.1.0 template)
+datacontract lint orders.odcs.yaml --all-errors   # validate against ODCS JSON Schema
+datacontract test orders.odcs.yaml            # run schema + quality checks on real data
+datacontract changelog v1.odcs.yaml v2.odcs.yaml  # diff two versions / breaking changes
 datacontract export html orders.odcs.yaml --output orders.html
-datacontract ci contracts/*.odcs.yaml               # test, tuned for pipelines
 ```
 
-Lint after every edit. `test` connects to the contract's `servers` and
-checks fields present, types match, `required`/`unique` hold, quality
-rules pass. `changelog` before bumping a version decides major vs minor.
-Non-zero exit on failed lint/test — safe to gate pipelines on.
-
-## Credentials for `test` and `ci`
-
-Never in the contract. Env vars follow `DATACONTRACT_<SERVERTYPE>_<OPTION>`:
-
-| Source | Variables |
-|--------|-----------|
-| postgres / mysql | `DATACONTRACT_POSTGRES_USERNAME`, `_PASSWORD` (mysql likewise) |
-| snowflake | `DATACONTRACT_SNOWFLAKE_USERNAME` + `_PASSWORD`, or key-pair: `_PRIVATE_KEY` / `_PRIVATE_KEY_FILE` (+ `_PRIVATE_KEY_FILE_PWD`); `_ROLE`, `_WAREHOUSE` |
-| bigquery | `DATACONTRACT_BIGQUERY_ACCOUNT_INFO_JSON_PATH` (service-account JSON) |
-| databricks | `DATACONTRACT_DATABRICKS_SERVER_HOSTNAME`, `_HTTP_PATH`, `_TOKEN` |
-| s3 | `DATACONTRACT_S3_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`, `_REGION` |
-
-Connection fields (`DATACONTRACT_POSTGRES_HOST`, `_DATABASE`, …) also
-exist and override the contract's `servers` when set. Alternatively a
-`datacontract-config.yaml` (`--config-file`) with nested keys and
-`${VAR}` interpolation, committable without secrets. Other sources
-(sqlserver, oracle, redshift, kafka, trino, athena, gcs, azure…) and
-local/file testing via DuckDB: [references/testing.md](references/testing.md).
-
-## Export and import
-
-```bash
-datacontract export <format> orders.odcs.yaml --output <file>
-datacontract import <source> --source <path-or-id> --output orders.odcs.yaml
-```
-
-Export formats: `sql` (`--dialect postgres|snowflake|databricks|…`;
-inferred from `servers`, errors without either), `dbt-models`,
-`dbt-sources`, `dbt-staging-sql`, `avro`, `jsonschema`, `protobuf`,
-`html`, `markdown`, `sodacl`, `great-expectations`, `pydantic-model`,
-`spark`, `bigquery`, `excel`, `odcs`, `custom --template <jinja>`.
-Import sources: files `sql` (`--dialect`), `avro`, `jsonschema`, `csv`,
-`parquet`, `excel`, `dbt` (manifest), and live systems `postgres`,
-`snowflake`, `bigquery`, `databricks`, `s3`, `glue`… — live imports also
-generate the `servers` block, so `test` works immediately; run
-`datacontract import <source> --help` for connection flags. The complete
-lists, `dbt sync`/`dbt test`, `catalog`, `publish`, and `api`:
-[references/commands.md](references/commands.md) when a format or command
-isn't above.
-
-## CI wiring
-
-```yaml
-- run: |
-    pip install 'datacontract-cli[postgres]'
-    datacontract lint --all-errors contracts/*.odcs.yaml
-    datacontract ci contracts/*.odcs.yaml
-  env:
-    DATACONTRACT_POSTGRES_USERNAME: ${{ vars.DB_USER }}
-    DATACONTRACT_POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-```
-
-`datacontract ci` emits GitHub Actions annotations and a step summary;
-`datacontract/datacontract-action` wraps it. PR checks lint every contract
-and run `changelog` against the default branch's version; post-deploy runs
-`test --server <env>`. `--output results.xml --output-format junit` feeds
-test reporters.
+- **lint** checks the YAML against the standard; default stops at the first
+  error, `--all-errors` reports everything. Always lint after editing a
+  contract, before committing.
+- **test** connects to the server(s) in the contract's `servers` block and
+  verifies real data: fields present, types match, quality rules pass.
+  Credentials come from `DATACONTRACT_<TYPE>_*` environment variables or a
+  `datacontract-config.yaml` — see
+  [references/testing.md](references/testing.md) before running tests.
+  Select one server with `--server <name>`, one object with
+  `--schema-name <name>`.
+- **changelog** shows what changed between two contract versions, flagging
+  breaking changes — run it before bumping the contract version to decide
+  major vs minor.
+- **export/import** use subcommands per format:
+  `datacontract export sql --dialect postgres orders.odcs.yaml`,
+  `datacontract import sql --source ddl.sql --dialect postgres --output orders.odcs.yaml`.
+  Full format lists, dbt sync, and CI patterns:
+  [references/commands.md](references/commands.md).
 
 ## Practical notes
 
 - Contract locations can be local paths, URLs, or S3 URLs in any command.
+- `export sql` infers the dialect from the contract's `servers`; with no
+  servers defined it errors — pass `--dialect` explicitly.
 - Use `--output <file>` rather than shell redirection (the Docker image
   wraps stdout at 80 columns).
-- Behind a corporate proxy or internal CA, pass `--system-truststore`.
-  Debug any command with `DATACONTRACT_CLI_DEBUG=1`.
+- `datacontract ci <files...>` is `test` tuned for pipelines: GitHub
+  Actions annotations and step summaries. A GitHub Action wrapper exists at
+  github.com/datacontract/datacontract-action.
+- Bootstrapping from existing data is usually faster than hand-writing:
+  `datacontract import <source>` against a live database also generates the
+  `servers` block, so `test` works immediately afterwards.
+- Behind a corporate proxy/internal CA, pass `--system-truststore`.
 - Python API: `from datacontract.data_contract import DataContract;
   DataContract(data_contract_file="orders.odcs.yaml").test().has_passed()`.
-- For the contract YAML itself (schema, quality rules, SLAs), use the
-  `odcs-authoring` skill.
 
-## When to open the references
+Exit codes are non-zero on failed lint/test — safe to gate pipelines on.
 
-- [references/commands.md](references/commands.md) — every option of every
-  command, the full export/import lists, dbt sync, catalog, publish, api.
-- [references/testing.md](references/testing.md) — credentials for sources
-  not in the table above, the config-file format, extras per source, and
-  local/file-based testing through DuckDB.
+For writing the contract YAML itself (schema, quality rules, SLAs), use the
+`odcs-authoring` skill.
+
+## References
+
+- [references/commands.md](references/commands.md) — full command
+  reference: every command with options, all export/import formats, dbt
+  workflow, catalog/publish/api, CI/CD wiring.
+- [references/testing.md](references/testing.md) — connecting `test` to
+  data sources: credential environment variables, config file format,
+  extras per source, local file testing via DuckDB.

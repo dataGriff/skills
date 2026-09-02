@@ -62,6 +62,12 @@ A skill is paid for on every trigger, so cost is a design input. What the
   arm and the with-skill/baseline token ratio. A with-skill run should sit
   within one or two turns of the baseline; more means it loaded files it
   didn't need.
+- **Slim only what the turns prove.** Inlining is not free: it is paid on
+  every trigger. `datacontract-cli` already sat at 1.01× the baseline with
+  conditional references; inlining its credential tables and format lists
+  raised per-trigger context and cut no turns, because its turns come from
+  running the CLI, not from loads. Measure before, change, measure after,
+  and revert when the after is not better.
 - **A check both arms pass measures nothing.** The results file reports how
   many grader checks separated the arms. If none did, the delta is noise:
   either the grader needs behavioural checks, or the skill isn't earning
