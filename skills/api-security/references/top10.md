@@ -195,21 +195,5 @@ input; verify webhook signatures (constant-time) before parsing the
 body; timeouts and size caps on every upstream call; allowlist redirect
 targets.
 
-## Writing the findings report
-
-Order: Critical → Low. Per finding:
-
-```markdown
-## [SEVERITY] Title naming the flaw and the asset
-- **Category:** API1 BOLA (etc.)
-- **Location:** `path/file.py:42` (or spec JSON pointer)
-- **Exploit:** the concrete request an attacker sends and what they get
-- **Fix:** the specific change — the check to add and where, the field
-  to remove, the config value to set
-```
-
-Group systemic issues (same root cause across endpoints) into one
-finding listing all locations. Close with what was *checked and found
-sound* — an explicit "authentication middleware verifies signature,
-expiry, issuer, audience" line tells the reader the silence elsewhere
-was diligence, not omission.
+(The findings-report format lives in SKILL.md — this file only decides
+what qualifies and under which category.)

@@ -54,11 +54,22 @@ requirement is specific to the API's resources and callers.
    security review that cries wolf gets ignored. Consult
    [references/top10.md](references/top10.md) if a category needs
    detection heuristics or you're unsure whether something qualifies.
-5. **Rank and report.** Order findings by severity (below). Each gets:
-   title, severity, OWASP category, location, exploit scenario, and a fix
-   that names the exact change — not "add validation" but which check,
-   where. Fix the code only when the user asked for fixes, not just a
-   review.
+5. **Rank and report.** Order findings by severity (below), formatted:
+
+   ```markdown
+   ## [SEVERITY] Title naming the flaw and the asset
+   - **Category:** API1 BOLA (the OWASP API Top 10 category)
+   - **Location:** `path/file.py:42` (or spec JSON pointer)
+   - **Exploit:** the concrete request an attacker sends, and what they get
+   - **Fix:** the specific change — which check, added where
+   ```
+
+   One systemic cause (e.g. "no handler checks object ownership") is one
+   finding listing every affected endpoint, not ten copies. Close the
+   report with what was checked and found sound — an explicit "token
+   validation verifies signature, expiry, issuer, audience" line tells
+   the reader the silence elsewhere was diligence, not omission. Fix the
+   code only when the user asked for fixes, not just a review.
 
 ## Severity
 

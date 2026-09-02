@@ -71,6 +71,14 @@ def grade_review(out):
          r"traceback|stack.?trace")
     ex.append(E("Ranks by severity (critical and high tiers present)",
                 "critical" in r and "high" in r, "grep severity words"))
+    cats = len(re.findall(r"\bapi(?:\s?|-)(10|[1-9])\b|owasp", r))
+    ex.append(E("Findings labeled with OWASP API Top 10 categories",
+                cats >= 5, f"category refs={cats}"))
+    ex.append(E("Closes with what was checked and found sound",
+                bool(re.search(r"(checked|reviewed|verified|tested)[^\n]{0,80}"
+                               r"(sound|no (issue|finding|vulnerabilit))|found sound|"
+                               r"not vulnerable|correctly (scoped|implemented|enforced)", r)),
+                "grep sound-closing"))
     lines = re.findall(r"\.py:\d+|line \d+", r)
     ex.append(E("Cites concrete locations (>= 5 file:line references)",
                 len(lines) >= 5, f"refs={len(lines)}"))
@@ -103,11 +111,34 @@ def grade_fix(out):
                 bool(re.search(r"user_id|g\.user|[\"']sub[\"']", get_order)),
                 get_order[:300] or "get_order not found"))
     update = func_src(tree, src, "update_profile")
+    # The allowlist may be a module-level constant, so gather every literal
+    # string collection the function can see: literals inside it, plus
+    # module-level assignments whose name it references.
+    def str_collections(node):
+        for n in ast.walk(node):
+            if isinstance(n, (ast.Set, ast.List, ast.Tuple)):
+                vals = [e.value for e in n.elts
+                        if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+                if vals:
+                    yield vals
+    used = {n.id for fn in ast.walk(tree)
+            if isinstance(fn, ast.FunctionDef) and fn.name == "update_profile"
+            for n in ast.walk(fn) if isinstance(n, ast.Name)}
+    pools = [v for fn in ast.walk(tree)
+             if isinstance(fn, ast.FunctionDef) and fn.name == "update_profile"
+             for v in str_collections(fn)]
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id in used for t in node.targets):
+            pools.extend(str_collections(node))
+    allowlists = [p for p in pools if ("email" in p or "name" in p)]
+    # Column-name interpolation is fine once names are gated by the
+    # allowlist, so the check is the gate itself: an explicit field set
+    # visible to the function, with role not assignable through it.
     ex.append(E("Profile update binds an explicit field allowlist (no role)",
-                update != "" and "{field}" not in update
-                and not re.search(r"get_json\(\)\.items\(\)", update)
-                and re.search(r"[\"'](email|name)[\"']", update),
-                update[:300] or "update_profile not found"))
+                update != "" and allowlists
+                and all("role" not in p for p in allowlists),
+                f"allowlists={allowlists}" if update else "update_profile not found"))
     get_user = func_src(tree, src, "get_user")
     ex.append(E("Sensitive fields no longer returned from get_user",
                 get_user != "" and "password_hash" not in get_user
