@@ -28,12 +28,18 @@ implementation to check conformance (provider side).
   Microcks per test run — no shared instance, no auth. Open
   [references/testcontainers.md](references/testcontainers.md) when writing
   test code with these modules.
-- **Local instance:** `git clone https://github.com/microcks/microcks.git
-  --depth 10 && cd microcks/install/docker-compose && docker compose -f
-  docker-compose-devmode.yml up -d` — devmode skips Keycloak and bundles
-  async support (Red Panda broker). UI at http://localhost:8080. The full
-  `docker-compose.yml` adds Keycloak (admin / microcks123); stack async
-  support on it with `-f async-addon.yml`.
+- **Local instance:**
+
+  ```bash
+  git clone https://github.com/microcks/microcks.git --depth 10
+  cd microcks/install/docker-compose
+  docker compose -f docker-compose-devmode.yml up -d
+  ```
+
+  Devmode skips Keycloak and bundles async support (Red Panda broker); UI
+  at http://localhost:8080. The full `docker-compose.yml` adds Keycloak —
+  its default admin / microcks123 login is for local development only;
+  stack async support on it with `-f async-addon.yml`.
 - **Shared/team instance:** Helm chart or operator on Kubernetes; CI then
   targets that instance with a Keycloak service account.
 
@@ -55,7 +61,7 @@ implementation to check conformance (provider side).
 
    | Runner            | For             | Validates                          |
    | ----------------- | --------------- | ---------------------------------- |
-   | `HTTP`            | REST, SOAP      | endpoint answers 20x/404 sensibly  |
+   | `HTTP`            | REST, SOAP      | endpoint answers 2xx/404 sensibly  |
    | `OPEN_API_SCHEMA` | REST            | status + response schema vs OpenAPI|
    | `ASYNC_API_SCHEMA`| events          | messages vs AsyncAPI schema        |
    | `GRPC_PROTOBUF`   | gRPC            | responses vs Protobuf schema       |
