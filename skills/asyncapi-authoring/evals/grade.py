@@ -14,6 +14,9 @@ from pathlib import Path
 
 import yaml
 
+SKILL_DIR = Path(__file__).resolve().parent.parent
+RULESET = SKILL_DIR / "assets" / "spectral-asyncapi.yaml"
+
 
 def sh(*args):
     r = subprocess.run(args, capture_output=True, text=True, timeout=180)
@@ -43,6 +46,26 @@ def cli_validates(ex, f):
     if shutil.which("asyncapi"):
         code, o = sh("asyncapi", "validate", str(f))
         ex.append(E("Passes `asyncapi validate`", code == 0, o))
+
+
+def spectral_conventions(ex, f):
+    """Score org conventions with the skill's ruleset (0 = error severity)."""
+    if not shutil.which("spectral"):
+        return
+    r = subprocess.run(
+        ["spectral", "lint", "--ruleset", str(RULESET), "-f", "json", str(f)],
+        capture_output=True, text=True, timeout=180)
+    try:
+        results = json.loads(r.stdout or "[]")
+    except json.JSONDecodeError:
+        ex.append(E("No errors from the skill's Spectral governance ruleset",
+                    False, r.stderr[-300:] or "spectral produced no JSON"))
+        return
+    errors = [x for x in results if x.get("severity") == 0]
+    ex.append(E("No errors from the skill's Spectral governance ruleset",
+                not errors,
+                "; ".join(f"{x.get('code')}@{x.get('path')}" for x in errors[:5])
+                or f"{len(results)} non-error finding(s)"))
 
 
 def channel_by_address(doc, address):
@@ -91,6 +114,42 @@ def grade_author_inventory(out):
                 "grep kafka+groupId enum+key"))
     ex.append(E("Payload constraints kept (quantity minimums as schema constraints)",
                 '"minimum": 1' in s and '"minimum": 0' in s, "grep minimum 1/0"))
+    spectral_conventions(ex, f)
+    return ex
+
+
+def grade_request_reply_avro(out):
+    ex = []
+    f = find_doc(out, "payment-check.asyncapi.yaml")
+    if not f.exists():
+        return [E("payment-check.asyncapi.yaml produced", False, "no yaml in outputs")]
+    cli_validates(ex, f)
+    doc = load(f)
+    ex.append(E("Targets AsyncAPI 3.1.0", str(doc.get("asyncapi")) == "3.1.0",
+                doc.get("asyncapi")))
+    req_id, _ = channel_by_address(doc, "payments.authorize.request")
+    ex.append(E("Request channel declares the queue address", bool(req_id), req_id))
+    reply_channels = [cid for cid, ch in (doc.get("channels") or {}).items()
+                      if isinstance(ch, dict) and ch.get("address") is None]
+    ex.append(E("Reply channel present with null/absent address (dynamic at runtime)",
+                bool(reply_channels), f"null-address channels={reply_channels}"))
+    send_op = next((op for op in (doc.get("operations") or {}).values()
+                    if isinstance(op, dict) and op.get("action") == "send"
+                    and (op.get("channel") or {}).get("$ref", "").endswith(str(req_id))),
+                   None) or {}
+    reply = send_op.get("reply") or {}
+    loc = str(((reply.get("address") or {}).get("location") or ""))
+    ex.append(E("Send operation carries a reply with address at $message.header#/replyTo",
+                loc.startswith("$message.header") and "replyTo" in loc, loc or reply))
+    s = json.dumps(doc)
+    ex.append(E("Avro multi-format schemas used for both records",
+                s.count("schemaFormat") >= 2 and "avro" in s.lower()
+                and "PaymentAuthRequest" in s and "PaymentAuthReply" in s,
+                f"schemaFormat x{s.count('schemaFormat')}"))
+    ex.append(E("correlationId defined against the correlationId header",
+                '"correlationId"' in s and "$message.header#/correlationId" in s,
+                "grep correlationId location"))
+    spectral_conventions(ex, f)
     return ex
 
 
@@ -147,7 +206,13 @@ def grade_review_legacy(out):
     return ex
 
 
-GRADERS = {"eval-0": grade_author_inventory, "eval-1": grade_review_legacy}
+GRADERS = {
+    "eval-0": grade_author_inventory,
+    "eval-1": grade_review_legacy,
+    # eval-1 keeps its legacy slash addresses by design, so the Spectral
+    # address-convention check applies only to the authoring evals.
+    "eval-2": grade_request_reply_avro,
+}
 
 
 def main():

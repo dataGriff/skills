@@ -16,6 +16,13 @@
       "files": [
         "legacy-notification-service.yaml"
       ]
+    },
+    {
+      "id": 2,
+      "name": "author-request-reply-avro",
+      "prompt": "Write the AsyncAPI document for our payment-check service. It talks to RabbitMQ over AMQP (broker mq.internal.acme.dev:5672). The service sends payment authorization requests to the queue payments.authorize.request; each request names its reply queue in the replyTo application header, and the service receives the reply there (reply queues are created dynamically at runtime, so their address is not known upfront). Payloads are Avro 1.9.0 records: the request is record PaymentAuthRequest { paymentId: string, amountCents: long, currency: string } and the reply is record PaymentAuthReply { paymentId: string, approved: boolean, reason: optional string }. Requests and replies are correlated by a correlationId application header. Use the latest AsyncAPI version. Save it as payment-check.asyncapi.yaml",
+      "expected_output": "Valid AsyncAPI 3.1.0 request-reply: send operation with reply.address at $message.header#/replyTo, a null-address reply channel, Avro multi-format payload schemas, and a header-based correlationId",
+      "files": []
     }
   ]
 }
