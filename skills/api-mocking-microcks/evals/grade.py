@@ -41,6 +41,13 @@ def E(text, passed, evidence):
     return {"text": text, "passed": bool(passed), "evidence": str(evidence)[:500]}
 
 
+def has_generator(s):
+    """True when s uses a Microcks id-generator template ({{ uuid() }},
+    guid()/randomUUID() aliases, randomString())."""
+    s = s.lower()
+    return "{{" in s and any(g in s for g in ("guid(", "uuid(", "randomstring("))
+
+
 def example_names(node):
     """Names of the plural named-`examples` map on a parameter/media object."""
     if not isinstance(node, dict):
@@ -93,8 +100,7 @@ def grade_rest(out):
                     if isinstance(ops, dict) and "post" in ops), None) or {}
     post_str = json.dumps(post_op, default=str)
     ex.append(E("POST response generates a fresh id via template function",
-                "{{" in post_str and any(g in post_str for g in ("guid(", "uuid(", "randomString(")),
-                "grep {{ guid()/uuid() }} in POST"))
+                has_generator(post_str), "grep {{ guid()/uuid()/randomUUID() }} in POST"))
     ex.append(E("POST response echoes request body fields via request.body templating",
                 "request.body" in post_str, "grep {{ request.body/... }} in POST"))
 
@@ -103,8 +109,9 @@ def grade_rest(out):
     ex.append(E("MOCKING.md runs Microcks via docker",
                 "docker" in md_text and "microcks" in md_text, "grep docker+microcks"))
     ex.append(E("MOCKING.md curls the correct /rest/{name}/{version} mock URL",
-                "rest/order%20api/1.0" in md_text or "rest/order api/1.0" in md_text,
-                "grep rest/Order API/1.0"))
+                any(u in md_text for u in
+                    ("rest/order+api/1.0", "rest/order%20api/1.0", "rest/order api/1.0")),
+                "grep rest/Order[+|%20| ]API/1.0"))
     return ex
 
 
@@ -157,8 +164,8 @@ def grade_async(out):
                 f"{len(msgs)} examples, tiers={tiers}"))
     payloads = json.dumps([m.get("payload") for m in msgs], default=str)
     ex.append(E("Example ids templated so every publication differs",
-                "{{" in payloads and any(g in payloads for g in ("guid(", "uuid(", "randomString(")),
-                "grep {{ guid() }} in example payloads"))
+                has_generator(payloads),
+                "grep {{ guid()/uuid()/randomUUID() }} in example payloads"))
     ex.append(E("Publication frequency set to 5s via x-microcks-operation",
                 "x-microcks-operation" in text and "frequency" in text and "5" in text.split("frequency")[-1][:20],
                 "grep x-microcks-operation frequency"))

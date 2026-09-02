@@ -96,7 +96,7 @@ at serve time. Works for REST responses and async event payloads alike.
 ```
 {{ guid() }}            {{ now() }}              {{ now(dd/MM/yyyy HH:mm:ss) }}
 {{ randomInt() }}       {{ randomInt(5, 50) }}   {{ randomString(24) }}
-{{ randomBoolean() }}   {{ randomValue(a,b,c) }} {{ uuid() }} (alias of guid)
+{{ randomBoolean() }}   {{ randomValue(a,b,c) }} {{ uuid() }} {{ randomUUID() }}
 {{ randomFirstName() }} {{ randomLastName() }}   {{ randomFullName() }}
 {{ randomEmail() }}     {{ randomCity() }}       {{ randomStreetAddress() }}
 ```

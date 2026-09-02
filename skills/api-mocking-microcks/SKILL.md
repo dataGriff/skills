@@ -50,7 +50,8 @@ curl -F "file=@order-api.yaml" -F "mainArtifact=true" \
   http://localhost:8585/api/artifact/upload
 ```
 
-Mock endpoints follow a fixed pattern (URL-encode spaces in the API name):
+Mock endpoints follow a fixed pattern (spaces in the API name are written
+as `+`, the form the Microcks UI shows; `%20` works too):
 
 ```
 REST:      http://localhost:8585/rest/{API name}/{version}/{path}
@@ -59,7 +60,7 @@ SOAP:      http://localhost:8585/soap/{API name}/{version}
 WebSocket: ws://localhost:8585/api/ws/{API name}/{version}/{channel}
 ```
 
-e.g. `curl http://localhost:8585/rest/Order%20API/1.0/orders/123`. The UI's
+e.g. `curl http://localhost:8585/rest/Order+API/1.0/orders/123`. The UI's
 API detail page lists the exact endpoint for every operation — check there
 rather than guessing encodings.
 
