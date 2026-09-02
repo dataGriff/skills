@@ -70,13 +70,16 @@ event mocking, see the references below.
 ## Workflow
 
 1. **Author or fix the spec for mockability.** Add named examples to every
-   operation and pair request/response examples by name. This is the step
-   that makes or breaks the mocks — open
-   [references/openapi-mocking.md](references/openapi-mocking.md) for REST
-   conventions (examples, `x-microcks-refs`, `x-microcks-operation`,
-   APIExamples overlays) or
-   [references/asyncapi-mocking.md](references/asyncapi-mocking.md) for
-   event conventions and enabling async support (Kafka, WebSocket, …).
+   operation and pair request/response examples by name — the same name on
+   the parameter/body example and on the response example that answers it,
+   with every required parameter valued in each named example. This step
+   makes or breaks the mocks; open
+   [references/openapi-mocking.md](references/openapi-mocking.md) when you
+   need more than that pairing rule (request-body matching,
+   `x-microcks-refs`, overlays for specs you can't edit), and
+   [references/asyncapi-mocking.md](references/asyncapi-mocking.md)
+   whenever the API is event-driven (message examples, enabling
+   Kafka/WebSocket support).
 2. **Run Microcks and import.** Uber image + `curl` upload above, or
    `microcks-cli import`, or Testcontainers inside a test suite.
 3. **Exercise the mocks.** Curl the endpoints; verify each request variant
@@ -87,8 +90,9 @@ event mocking, see the references below.
    make responses dynamic with `{{ }}` template functions.
 4. **Automate.** Embed mocks in unit/integration tests with Testcontainers
    (Java, Node, Go, Python, .NET), or run `microcks-cli import`/`test` in
-   CI to keep mocks fresh and contract-test deployed implementations:
-   [references/automation-and-testing.md](references/automation-and-testing.md).
+   CI to keep mocks fresh and contract-test deployed implementations — open
+   [references/automation-and-testing.md](references/automation-and-testing.md)
+   when wiring either of those up.
 
 ## Practical notes
 
