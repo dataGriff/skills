@@ -138,14 +138,75 @@ def grade_review_legacy(out):
     ex.append(E("subnets use for_each (or keyed map), not count over a list",
                 "for_each" in text and not re.search(r"\bcount\s*=\s*length\(", text),
                 "grep for_each / count=length"))
-    ex.append(E("AMI looked up or parameterised, not hardcoded",
-                "ami-0abcdef1234567890" not in text
-                and ('data "aws_ami"' in text or re.search(r'variable\s+"[^"]*ami', text)),
-                "grep ami"))
+    # A pinned AMI is acceptable ("must keep existing" forbids replacement) —
+    # but only as a visible decision: parameterised/looked up, or a literal
+    # with an explanatory comment right above it.
+    parameterised = 'data "aws_ami"' in text or re.search(r'variable\s+"[^"]*ami', text)
+    deliberate, literal_use = True, False
+    for f in files:
+        lines = f.read_text(encoding="utf-8", errors="replace").splitlines()
+        for i, line in enumerate(lines):
+            if re.search(r'\bami\s*=\s*"ami-', line):
+                literal_use = True
+                if not any(l.lstrip().startswith("#") for l in lines[max(0, i - 3):i]):
+                    deliberate = False
+    ex.append(E("AMI handled deliberately: parameterised, looked up, or pinned with a comment",
+                (parameterised and not literal_use) or (literal_use and deliberate),
+                f"literal_use={literal_use} commented={deliberate} parameterised={bool(parameterised)}"))
     return ex
 
 
-GRADERS = {"eval-0": grade_author_module, "eval-1": grade_review_legacy}
+def grade_refactor_adopt(out):
+    ex = []
+    files = tf_files(out)
+    if not files:
+        return [E(".tf files produced", False, "no .tf files in outputs")]
+    text = read_all(files)
+
+    moved = re.search(
+        r"moved\s*{[^}]*from\s*=\s*aws_s3_bucket\.data\b[^}]*to\s*=\s*aws_s3_bucket\.artifacts\b",
+        text, re.S) or re.search(
+        r"moved\s*{[^}]*to\s*=\s*aws_s3_bucket\.artifacts\b[^}]*from\s*=\s*aws_s3_bucket\.data\b",
+        text, re.S)
+    ex.append(E("rename done with a moved block (declarative, plan-reviewable)",
+                moved, "grep moved{from=data,to=artifacts}"))
+    ex.append(E("resource renamed to artifacts in config",
+                re.search(r'resource\s+"aws_s3_bucket"\s+"artifacts"', text)
+                and not re.search(r'resource\s+"aws_s3_bucket"\s+"data"', text),
+                "grep resource blocks"))
+    imp = re.search(
+        r"import\s*{[^}]*to\s*=\s*aws_s3_bucket\.logs_archive\b[^}]*id\s*=\s*\"acme-logs-archive\"",
+        text, re.S) or re.search(
+        r"import\s*{[^}]*id\s*=\s*\"acme-logs-archive\"[^}]*to\s*=\s*aws_s3_bucket\.logs_archive\b",
+        text, re.S)
+    ex.append(E("adoption done with an import block targeting logs_archive",
+                imp and re.search(r'resource\s+"aws_s3_bucket"\s+"logs_archive"', text),
+                f"import_block={bool(imp)}"))
+    backend = re.search(r'backend\s+"s3"\s*{([^}]*)}', text, re.S)
+    body = backend.group(1) if backend else ""
+    ex.append(E("s3 backend configured with the given bucket and key",
+                "acme-tfstate" in body and "platform/app.tfstate" in body,
+                body[:200] or "no s3 backend block"))
+    ex.append(E("locking via use_lockfile, not the deprecated DynamoDB table",
+                re.search(r"use_lockfile\s*=\s*true", body) and "dynamodb" not in body,
+                body[:200] or "no s3 backend block"))
+    ex.append(E("terraform fmt -check clean", *fmt_clean(out)))
+    notes = out / "notes.md"
+    if notes.exists():
+        n = notes.read_text(encoding="utf-8", errors="replace").lower()
+        ex.append(E("notes.md covers state migration on init and no destroy/recreate",
+                    "-migrate-state" in n and ("no-op" in n or "not be destroyed" in n
+                    or "without destroy" in n or "no destroy" in n or "no resources" in n
+                    or "recreat" in n),
+                    n[:200]))
+    else:
+        ex.append(E("notes.md covers state migration on init and no destroy/recreate",
+                    False, "notes.md missing"))
+    return ex
+
+
+GRADERS = {"eval-0": grade_author_module, "eval-1": grade_review_legacy,
+           "eval-2": grade_refactor_adopt}
 
 
 def main():
