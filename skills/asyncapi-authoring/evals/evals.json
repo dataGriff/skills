@@ -1,5 +1,6 @@
 {
   "skill_name": "asyncapi-authoring",
+  "allowed_tools": ["Bash(asyncapi *)", "Bash(spectral *)"],
   "evals": [
     {
       "id": 0,

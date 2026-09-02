@@ -18,161 +18,199 @@ description: >-
 
 # Authoring AsyncAPI documents
 
-Write event-driven API definitions against **AsyncAPI 3.1.0**
-(`asyncapi: 3.1.0`). One document describes one *application* — the thing
-that connects to brokers and sends or receives messages — conventionally
-saved as `asyncapi.yaml`. 3.1.0 is structurally identical to 3.0.0 (it adds
-ROS 2 bindings), so 3.0 guidance applies unchanged; prefer 3.1.0 for new
-documents.
+One document describes one *application* — the thing that connects to
+brokers and sends or receives messages — against **AsyncAPI 3.1.0** (the
+latest release; 3.0 guidance applies unchanged), conventionally saved as
+`asyncapi.yaml`. The skeleton below carries the syntax for everything a
+useful document needs; work from it directly and open the references only
+for the cases listed at the end. Validate with `asyncapi validate <file>`
+when the AsyncAPI CLI is installed (`npm i -g @asyncapi/cli`).
 
-Start from [assets/template.asyncapi.yaml](assets/template.asyncapi.yaml) —
-copy it and adapt rather than writing from a blank page. Validate with
-`asyncapi validate <file>` (AsyncAPI CLI, `npm i -g @asyncapi/cli`).
-
-## The shape of a document
+## The skeleton
 
 ```yaml
 asyncapi: 3.1.0           # spec version — always 3.1.0 for new documents
-info: {title, version, description, contact, ...}   # required
-servers:                  # brokers/environments: host + protocol per entry
-  production: {host, protocol, ...}
-channels:                 # WHERE messages flow: address + the messages on it
-  orderPlaced:
-    address: orders.placed
-    messages: {orderPlaced: {$ref: '#/components/messages/orderPlaced'}}
-operations:               # WHAT this app does: send or receive on a channel
-  publishOrderPlaced:
-    action: send
-    channel: {$ref: '#/channels/orderPlaced'}
-components:               # reusable definitions, inert until $ref'd
-  messages: {...}
-  schemas: {...}
+info:
+  title: Order Service    # the application, not the broker
+  version: 1.0.0          # the API's semver, not the spec version
+  description: Emits order events; reacts to payment authorizations.
+  contact: {name: Order Platform Team, email: orders-team@example.com}
 defaultContentType: application/json
+
+servers:
+  production:
+    host: kafka.example.com:9092
+    protocol: kafka                    # amqp | mqtt | ws | http | ...
+    description: Production cluster. SASL/SCRAM required.
+    security:
+      - $ref: '#/components/securitySchemes/saslScram'
+
+channels:                 # WHERE messages flow — id is for tooling,
+  orderPlaced:            #   address is the wire truth
+    address: orders.placed.v1          # topic / routing key / path
+    description: One event per order successfully placed.
+    messages:             # EVERY message any app puts on this channel
+      orderPlaced:
+        $ref: '#/components/messages/orderPlaced'
+    bindings:
+      kafka: {partitions: 12, replicas: 3, bindingVersion: 0.5.0}
+  paymentAuthorized:
+    address: payments.authorized.v1
+    messages:
+      paymentAuthorized:
+        $ref: '#/components/messages/paymentAuthorized'
+
+operations:               # WHAT this application does on those channels
+  sendOrderPlaced:
+    action: send          # send = this app sends; receive = it receives
+    channel: {$ref: '#/channels/orderPlaced'}      # root channels only
+    summary: Publish an event when a customer places an order.
+    messages:             # subset of the channel's messages, ref'd
+      - $ref: '#/channels/orderPlaced/messages/orderPlaced'   # THROUGH it
+  receivePaymentAuthorized:
+    action: receive
+    channel: {$ref: '#/channels/paymentAuthorized'}
+    summary: Mark the order as paid when its payment clears.
+    bindings:
+      kafka:
+        groupId: {type: string, enum: [order-service]}   # a Schema Object
+        bindingVersion: 0.5.0
+
+components:               # reusable definitions — inert until $ref'd
+  messages:
+    orderPlaced:
+      name: OrderPlaced
+      summary: A customer completed checkout and an order was created.
+      correlationId:
+        location: '$message.header#/correlationId'   # runtime expression
+      headers:            # application headers only, never protocol ones
+        type: object
+        properties:
+          correlationId: {type: string, format: uuid}
+      payload:
+        $ref: '#/components/schemas/orderPlacedPayload'
+      bindings:
+        kafka:
+          key: {type: string, description: Order id — keeps ordering.}
+          bindingVersion: 0.5.0
+      examples:
+        - name: minimal
+          payload: {orderId: 9dbc3d5e-..., totalAmount: 12.5, currency: EUR}
+    paymentAuthorized:
+      name: PaymentAuthorized
+      summary: A payment for an order was authorized.
+      payload: {$ref: '#/components/schemas/paymentAuthorizedPayload'}
+  schemas:                # default schema language: JSON Schema draft 7
+    orderPlacedPayload:   #   superset (+ discriminator, deprecated)
+      type: object
+      additionalProperties: false
+      required: [orderId, totalAmount, currency]
+      properties:
+        orderId: {type: string, format: uuid, description: Order id.}
+        totalAmount: {type: number, minimum: 0}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+    paymentAuthorizedPayload:
+      type: object
+      required: [orderId, paymentId]
+      properties:
+        orderId: {type: string, format: uuid}
+        paymentId: {type: string, format: uuid}
+  securitySchemes:
+    saslScram:
+      type: scramSha512   # the mechanism only — never credentials
+      description: Credentials provisioned by the platform team.
 ```
 
-Only `asyncapi` and `info` (with `title` + `version`) are required — but a
-useful document declares its servers, every channel the application
-touches, and an operation for each thing the application actually does.
+Only `asyncapi` and `info` (title + version) are required, but a useful
+document declares its servers, every channel it touches, and an operation
+for each thing the application actually does.
 
-## The v3 mental model — get this right first
+## The v3 mental model
 
-- **Channels say *where*, operations say *what*.** A channel is an
-  addressable place (topic, queue, path) plus the messages that flow over
-  it. An operation is this application's use of a channel: `action: send`
-  or `action: receive`. In v2 these were fused (`publish`/`subscribe`
-  under the channel) and notoriously inverted; in v3 there is no ambiguity.
-- **The document describes *this application's* behavior, not the
-  reader's.** `action: send` means the described application sends.
-  Consumers reading the document invert it for themselves.
-- **Channel keys are identifiers, addresses are the wire truth.** The map
-  key (`orderPlaced`) is a case-sensitive id for tooling and `$ref`s; the
-  `address` (`orders.placed`) is the actual topic/routing key/path. Never
-  put the address in the key.
-- **Root = implemented, components = available.** Channels and operations
-  at the document root MUST exist / be implemented by the application.
-  Anything under `components` is inert until referenced. Root operations
-  must `$ref` root channels (never `#/components/...`); a root channel's
-  `servers` list must `$ref` root servers.
-- **Reuse via `$ref`.** Define messages and schemas once under
-  `components`, reference them from channels; an operation's `messages`
-  list points *through the channel* (`#/channels/orderPlaced/messages/...`),
-  not into components.
+- **Channels say *where*, operations say *what*.** In v2 these were fused
+  (`publish`/`subscribe` under the channel) and notoriously inverted; in
+  v3 there is no ambiguity.
+- **The document describes *this application's* behavior.** `action: send`
+  means the described application sends; readers invert for themselves.
+- **Channel keys are identifiers; addresses are the wire truth.** Never
+  put the address in the key. `address: null` means unknown at design time
+  (e.g. a dynamically created reply queue).
+- **Root = implemented, components = available.** Root operations must
+  `$ref` root channels (never `#/components/...`); a root channel's
+  `servers` list must `$ref` root servers. Anything under `components` is
+  inert until referenced.
+- **Operation messages point through the channel**
+  (`#/channels/<id>/messages/<id>`), never into components. Omitting the
+  list means all of the channel's messages; `[]` means none.
+
+## Rules that matter
+
+- **Non-JSON-Schema payloads use a multi-format schema** — anywhere a
+  schema is allowed, swap in `{schemaFormat, schema}`:
+
+  ```yaml
+  payload:
+    schemaFormat: 'application/vnd.apache.avro;version=1.9.0'
+    schema: {type: record, name: OrderPlaced, fields: [...]}
+  ```
+
+  Avro/JSON-based schemas inline as objects, Protobuf/XSD as strings; an
+  optional Avro field is the union `['null', string]` with
+  `default: null`; pair the format with a matching `contentType`
+  (e.g. `avro/binary`).
+- **Every message on a channel must match exactly one message object** —
+  keep payloads distinguishable, or tooling can't tell them apart.
+- **Bindings carry protocol truth; pin `bindingVersion`** (it defaults to
+  the moving target `latest`). Put each fact at the level it is true for:
+  registry wiring on the server, partitions on the channel, `groupId` on
+  the operation, record `key` on the message.
+- **`info.version` is the API's semver** — major for breaking (removed or
+  renamed address/field, narrowed payload), minor for additive. The
+  `asyncapi` field changes only when adopting a newer spec release.
+- **No secrets, ever.** Security schemes describe the mechanism; a
+  `user:pass@host` anywhere is a review-blocking defect.
+- **No invented fields.** Org metadata goes in `x-` specification
+  extensions; anything else fails validation.
+- **The v2→v3 inversion trap** when upgrading: v2 `publish` meant "others
+  may publish here" — this app *receives* (`action: receive`); v2
+  `subscribe` meant this app *sends*. Mapping keywords naively inverts the
+  API. Also: v2 server `url` split into `host`/`protocol`/`pathname`;
+  parameters lost `schema` (plain strings now); `operationId`/`messageId`
+  fields became map keys.
 
 ## Workflow
 
-1. **Gather semantics before syntax.** Identify the application being
-   described, the brokers/environments it connects to, each topic/queue it
-   uses, the messages on each, their payloads and headers, and which
-   direction the application acts in (send vs receive) on each channel.
-2. **Write `info`** — title naming the application (not the broker),
-   semver `version` of the API, description, contact/owner.
-3. **Declare `servers`** — one per environment, `host` + `protocol`
-   (+ `protocolVersion`, `security`, variables). Read
-   [references/channels-operations-servers.md](references/channels-operations-servers.md)
-   for server fields, variables, and security schemes.
-4. **Model `channels`** — one per topic/queue/path, with `address`, the
-   full set of `messages` valid on it, `parameters` for any `{expressions}`
-   in the address, and protocol `bindings` where broker config matters
-   (partitions, queue durability). Same reference covers channel fields,
-   parameters, and the root-vs-components rules.
-5. **Declare `operations`** — one per send/receive the application
-   performs, with `action`, a `channel` $ref, and a `messages` subset when
-   the operation handles fewer messages than the channel carries. Use
-   `reply` for request-reply. Same reference covers operations, traits,
-   and reply objects.
-6. **Define messages and payloads under `components`.** Give each message
-   a `name`, `title`, `summary`, payload schema, `examples`, and a
-   `correlationId` where flows need tracing. Payloads default to AsyncAPI
-   Schema Object (JSON Schema draft 7 superset); use a multi-format schema
-   (`schemaFormat` + `schema`) for Avro or Protobuf. Read
-   [references/messages-and-schemas.md](references/messages-and-schemas.md)
-   for message fields, traits, correlation IDs, and schema formats.
-7. **Add protocol bindings** at whichever level the protocol detail lives
-   (server, channel, operation, message) — e.g. Kafka `key` on the message,
-   `groupId` on the operation. Read
-   [references/bindings.md](references/bindings.md) for the Kafka fields
-   and the pattern for other protocols.
-8. **Validate.** `asyncapi validate <file>`. Fix errors top-to-bottom.
-9. **Enforce conventions with Spectral.** Schema validation accepts an
-   undescribed server and a camelCase-vs-kebab mess; org style rules need
-   a Spectral ruleset — start from
-   [assets/spectral-asyncapi.yaml](assets/spectral-asyncapi.yaml)
-   (extends `spectral:asyncapi`, which covers v2 and v3) and run both in
-   CI. Read
-   [references/style-and-governance.md](references/style-and-governance.md)
-   for naming conventions, custom rules, versioning, and v2→v3 migration.
+1. Gather semantics first: the application, its brokers, each
+   topic/queue, the messages on each with payloads and headers, and which
+   direction the application acts in on each channel.
+2. Fill `info`, `servers`, then channels (full message sets, parameters
+   for any `{expressions}` in addresses), then operations (send/receive
+   with message subsets), then message and schema definitions under
+   `components`, with a `correlationId` where flows need tracing.
+3. Add protocol bindings where broker config is part of the contract.
+4. Validate when the CLI is installed; fix errors top-to-bottom, then
+   bump `info.version` if this replaces a published document.
 
-## Authoring judgment
-
-- **`info.version` ≠ `asyncapi` version.** Bump `info.version` (semver) on
-  API changes: major for breaking (removed channel/field, renamed address,
-  narrowed payload), minor for additive. The `asyncapi` field only changes
-  when adopting a newer spec release.
-- **Model the full channel, then narrow per operation.** A channel's
-  `messages` map is everything any application may put on it; an
-  operation's `messages` list is the subset this application handles.
-  Omitting the operation's list means "all of them" — set it explicitly
-  when narrowing, and `[]` means none.
-- **Every message on a channel must match exactly one message object** —
-  make payloads distinguishable (a discriminating field or distinct
-  required sets), or tooling can't tell them apart.
-- **Bindings carry protocol truth; keep the rest portable.** Business
-  meaning lives in messages, schemas, and descriptions. Broker specifics
-  (partitions, groupIds, schema-registry wiring) live in bindings — and
-  pin `bindingVersion` rather than relying on `latest`.
-- **Never invent top-level or object fields.** Org-specific metadata goes
-  in specification extensions (`x-` prefixed keys, valid on any object) —
-  anything else fails validation.
-- **No secrets.** Server definitions carry hosts and security *scheme*
-  descriptions (the *how*, e.g. `scramSha512`), never credentials.
-  Usernames/passwords in an `amqp://user:pass@host` style URL are a
-  review-blocking defect.
-- **Upgrading v2 documents is a restructure, not a rename.** `publish` in
-  v2 meant "others may publish; this app receives" — carrying it to
-  `action: send` silently inverts the API. Follow the migration table in
-  [references/style-and-governance.md](references/style-and-governance.md),
-  or run `asyncapi convert` and review its output.
-
-## References
+## When to open the references
 
 - [references/channels-operations-servers.md](references/channels-operations-servers.md)
-  — servers, server variables, security schemes, channels, parameters and
-  address expressions, operations, traits, request-reply.
+  — request-reply (reply objects, dynamic reply addresses), operation and
+  message traits, server variables, the full security-scheme type list,
+  parameters/address expressions beyond the basics.
 - [references/messages-and-schemas.md](references/messages-and-schemas.md)
-  — message objects, headers/payload, correlation IDs and runtime
-  expressions, message traits and examples, multi-format schemas
-  (Avro/Protobuf/JSON Schema), schema object fields.
-- [references/bindings.md](references/bindings.md) — how bindings work at
-  all four levels; Kafka bindings in detail; AMQP, MQTT, WebSockets, HTTP
-  in brief; version pinning.
+  — the full multi-format table (Protobuf, OpenAPI, RAML format strings),
+  message examples/traits detail, the components map, schema-registry
+  pairing.
+- [references/bindings.md](references/bindings.md) — Kafka binding fields
+  beyond the skeleton (schema registry, topicConfiguration,
+  schemaIdLocation), AMQP/MQTT/WebSockets/HTTP bindings.
 - [references/style-and-governance.md](references/style-and-governance.md)
-  — naming conventions, document organization, validation and CI, Spectral
-  rulesets, versioning policy, v2→v3 migration table.
+  with [assets/spectral-asyncapi.yaml](assets/spectral-asyncapi.yaml) —
+  when reviewing someone else's document (checklist), setting up Spectral
+  / CI governance, naming conventions, or doing a full v2→v3 migration
+  (complete mapping table).
 - [assets/template.asyncapi.yaml](assets/template.asyncapi.yaml) — a
-  complete, valid starter document to copy.
-- [assets/spectral-asyncapi.yaml](assets/spectral-asyncapi.yaml) — starter
-  governance ruleset extending `spectral:asyncapi`.
-- Authoritative spec: https://github.com/asyncapi/spec (spec/asyncapi.md)
-  and https://www.asyncapi.com/docs/reference/specification/latest —
-  consult for anything not covered here. Protocol bindings live in
-  https://github.com/asyncapi/bindings.
+  fuller validated example (two-server setup, message traits, licence and
+  richer docs) if the skeleton isn't enough.
+- Authoritative spec: https://github.com/asyncapi/spec (spec/asyncapi.md);
+  protocol bindings: https://github.com/asyncapi/bindings.
