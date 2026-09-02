@@ -155,7 +155,11 @@ GRADERS = {"eval-0": grade_author_books, "eval-1": grade_review_legacy}
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
-        grader = GRADERS[eval_dir.name[:6]]
+        key = "-".join(eval_dir.name.split("-", 2)[:2])  # "eval-<id>"
+        grader = GRADERS.get(key)
+        if grader is None:
+            sys.exit(f"grade.py: no grader registered for {eval_dir.name} "
+                     f"(known: {sorted(GRADERS)}) — add it to GRADERS")
         for arm in ("with_skill", "without_skill"):
             out = eval_dir / arm / "outputs"
             if not out.is_dir():
