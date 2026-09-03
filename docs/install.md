@@ -59,6 +59,8 @@ the symlink installs above. After editing the manifest, check it with
 
 - **Windows**: git creates the committed symlinks only with
   `core.symlinks=true` and Developer Mode (or admin) enabled; otherwise they
-  check out as plain text files. WSL works out of the box.
+  check out as plain text files. `task install:skills` also creates
+  symlinks and needs the same Developer Mode (or admin) privileges, or it
+  errors out per-entry instead of installing. WSL works out of the box.
 - **Moved clone**: re-run `task install:skills` after moving the clone —
   it re-points stale links automatically.

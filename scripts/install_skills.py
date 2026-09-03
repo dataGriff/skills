@@ -47,12 +47,15 @@ def repo_skills() -> list[Path]:
 def points_into_repo(link: Path) -> bool:
     try:
         return link.is_symlink() and link.resolve().is_relative_to(SKILLS_DIR)
-    except OSError:
+    except (OSError, RuntimeError):
+        # RuntimeError: symlink loop detected by resolve(); treat as "not ours"
+        # so install/uninstall can keep scanning the rest of the directory.
         return False
 
 
-def install(agents: list[str]) -> int:
+def install(agents: list[str]) -> tuple[int, int]:
     warnings = 0
+    errors = 0
     for agent in agents:
         target_dir = AGENT_DIRS[agent]
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -64,9 +67,14 @@ def install(agents: list[str]) -> int:
                 print(f"WARN  {link}: exists and is not ours - skipped")
                 warnings += 1
                 continue
-            link.symlink_to(skill)
+            try:
+                link.symlink_to(skill)
+            except OSError as exc:
+                print(f"ERROR {link}: failed to create symlink - {exc}", file=sys.stderr)
+                errors += 1
+                continue
             print(f"ok    {link} -> {skill}")
-    return warnings
+    return warnings, errors
 
 
 def uninstall(agents: list[str]) -> int:
@@ -99,9 +107,12 @@ def main() -> int:
 
     if args.uninstall:
         return uninstall(agents)
-    warnings = install(agents)
+    warnings, errors = install(agents)
     if warnings:
         print(f"\n{warnings} entr{'y' if warnings == 1 else 'ies'} skipped (see WARN above)")
+    if errors:
+        print(f"{errors} entr{'y' if errors == 1 else 'ies'} failed (see ERROR above)", file=sys.stderr)
+        return 1
     return 0
 
 
