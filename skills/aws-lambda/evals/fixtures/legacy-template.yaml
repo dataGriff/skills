@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Orders worker (built by contractor, 2021)
+
+Resources:
+  OrdersQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: orders-queue
+      VisibilityTimeout: 30
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: orders-prod
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  OrdersWorker:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: legacy-handler.handler
+      Runtime: python3.8
+      CodeUri: .
+      MemorySize: 128
+      Environment:
+        Variables:
+          DB_PASSWORD: "sup3rs3cretPr0d!"
+          TABLE_NAME: orders-prod
+      Policies:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt OrdersQueue.Arn
+            BatchSize: 10

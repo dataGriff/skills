@@ -11,6 +11,7 @@ description: >-
   integration tests, or wants contract testing of an implementation against
   its spec. Also use when adding examples/x-microcks extensions to a spec so
   it mocks well.
+allowed-tools: Bash(microcks-cli *)
 ---
 
 # API mocking with Microcks
