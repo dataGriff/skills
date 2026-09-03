@@ -19,6 +19,11 @@ Safety rules:
   into this repo's ``skills/`` is skipped with a warning;
 - ``--uninstall`` removes only symlinks that point into this repo.
 
+``--skills`` narrows either operation to a comma-separated subset of skill
+names, so a machine or project can install only the group it needs — every
+installed skill's metadata is loaded into every conversation, so installing
+less costs less. Default is all skills.
+
 Run via ``task install:skills`` / ``task uninstall:skills``.
 """
 
@@ -38,10 +43,13 @@ AGENT_DIRS = {
 }
 
 
-def repo_skills() -> list[Path]:
-    return sorted(
+def repo_skills(names: list[str] | None = None) -> list[Path]:
+    skills = sorted(
         d for d in SKILLS_DIR.iterdir() if d.is_dir() and (d / "SKILL.md").is_file()
     )
+    if names is None:
+        return skills
+    return [d for d in skills if d.name in names]
 
 
 def points_into_repo(link: Path) -> bool:
@@ -53,13 +61,13 @@ def points_into_repo(link: Path) -> bool:
         return False
 
 
-def install(agents: list[str]) -> tuple[int, int]:
+def install(agents: list[str], skills: list[str] | None) -> tuple[int, int]:
     warnings = 0
     errors = 0
     for agent in agents:
         target_dir = AGENT_DIRS[agent]
         target_dir.mkdir(parents=True, exist_ok=True)
-        for skill in repo_skills():
+        for skill in repo_skills(skills):
             link = target_dir / skill.name
             if points_into_repo(link):
                 link.unlink()  # re-link in case the clone moved
@@ -77,12 +85,14 @@ def install(agents: list[str]) -> tuple[int, int]:
     return warnings, errors
 
 
-def uninstall(agents: list[str]) -> int:
+def uninstall(agents: list[str], skills: list[str] | None) -> int:
     for agent in agents:
         target_dir = AGENT_DIRS[agent]
         if not target_dir.is_dir():
             continue
         for link in sorted(target_dir.iterdir()):
+            if skills is not None and link.name not in skills:
+                continue
             if points_into_repo(link):
                 link.unlink()
                 print(f"removed  {link}")
@@ -97,6 +107,11 @@ def main() -> int:
         default=",".join(AGENT_DIRS),
         help=f"comma-separated subset of: {', '.join(AGENT_DIRS)}",
     )
+    parser.add_argument(
+        "--skills",
+        default="",
+        help="comma-separated subset of skill names (default: all skills)",
+    )
     args = parser.parse_args()
 
     agents = [a.strip() for a in args.agents.split(",") if a.strip()]
@@ -105,9 +120,18 @@ def main() -> int:
         print(f"unknown agent(s): {', '.join(unknown)}", file=sys.stderr)
         return 1
 
+    skills = [s.strip() for s in args.skills.split(",") if s.strip()] or None
+    if skills is not None:
+        known = {d.name for d in repo_skills()}
+        unknown_skills = [s for s in skills if s not in known]
+        if unknown_skills:
+            print(f"unknown skill(s): {', '.join(unknown_skills)}", file=sys.stderr)
+            print(f"available: {', '.join(sorted(known))}", file=sys.stderr)
+            return 1
+
     if args.uninstall:
-        return uninstall(agents)
-    warnings, errors = install(agents)
+        return uninstall(agents, skills)
+    warnings, errors = install(agents, skills)
     if warnings:
         print(f"\n{warnings} entr{'y' if warnings == 1 else 'ies'} skipped (see WARN above)")
     if errors:

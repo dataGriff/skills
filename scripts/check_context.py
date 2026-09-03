@@ -29,9 +29,27 @@ BUDGETS: list[tuple[str, int, int]] = [
 DOCS_MAX_LINES = 300
 SKILL_MD_MAX_TOKENS = 5000
 
+# Skill frontmatter (name + description) is injected into *every* conversation
+# once the suite is installed, so the always-on cost grows linearly with skill
+# count even when no skill triggers. Budget the total across the suite, not
+# just each file: hitting this ceiling means tightening descriptions or
+# splitting the suite into separately installable groups.
+SUITE_METADATA_MAX_TOKENS = 3500
+
 
 def estimate_tokens(text: str) -> int:
     return len(text) // 4
+
+
+def frontmatter(text: str) -> str:
+    """Return the YAML frontmatter block, without the --- fences."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return ""
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "\n".join(lines[1:i])
+    return ""
 
 
 def main() -> int:
@@ -83,14 +101,26 @@ def main() -> int:
     # SKILL.md bodies load whole when a skill triggers — keep the token cost sane.
     skills_dir = REPO_ROOT / "skills"
     if skills_dir.is_dir():
+        metadata_tokens = 0
         for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
             rel = skill_md.relative_to(REPO_ROOT)
-            n_tokens = estimate_tokens(skill_md.read_text(encoding="utf-8"))
+            text = skill_md.read_text(encoding="utf-8")
+            metadata_tokens += estimate_tokens(frontmatter(text))
+            n_tokens = estimate_tokens(text)
             if n_tokens > SKILL_MD_MAX_TOKENS:
                 errors.append(
                     f"{rel}: ~{n_tokens} tokens (budget {SKILL_MD_MAX_TOKENS}). "
                     "Move detail into the skill's references/ directory."
                 )
+        if metadata_tokens > SUITE_METADATA_MAX_TOKENS:
+            errors.append(
+                f"skills/*/SKILL.md frontmatter totals ~{metadata_tokens} tokens "
+                f"(budget {SUITE_METADATA_MAX_TOKENS}). Every installed skill's "
+                "name + description is loaded into every conversation, whether or "
+                "not the skill triggers. Tighten the wordiest descriptions, or "
+                "split the suite into separately installable groups "
+                "(task install:skills SKILLS=...)."
+            )
 
     for error in errors:
         print(f"ERROR: {error}")

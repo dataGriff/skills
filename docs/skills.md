@@ -76,7 +76,12 @@ A skill is paid for on every trigger, so cost is a design input. What the
   appear in the results header. Runs on different or unknown models are
   not comparable.
 - **The description is paid for in every conversation.** Keep it to the
-  capability and the trigger phrases.
+  capability and the trigger phrases. This cost is also linear in skill
+  count: with the whole suite installed, every session carries every
+  skill's frontmatter. `task check:context` budgets the suite-wide total,
+  so a new skill can fail CI even when its own description is legal — the
+  fix is tightening the wordiest descriptions across the suite, or letting
+  users install only the group they need (`task install:skills SKILLS=...`).
 
 ## Validation
 
