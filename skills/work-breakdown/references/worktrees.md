@@ -14,7 +14,7 @@ the integration pain to merge time.
 From the main checkout, one worktree per unit, as a sibling of the repo:
 
 ```bash
-git worktree add ../<repo>-<unit-slug> -b <branch-name> origin/main
+git worktree add -b <branch-name> ../<repo>-<unit-slug> origin/main
 ```
 
 - Branch from `origin/main` (or the repo's default branch), not from the
