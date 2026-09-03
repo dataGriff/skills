@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: Order API
+  version: 1.2.0
+  description: Orders lookup service for the acme storefront.
+paths:
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      summary: Get one order by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          examples:
+            ord_123:
+              value: ord_123
+      responses:
+        "200":
+          description: The order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                ord_123:
+                  value:
+                    id: ord_123
+                    status: SHIPPED
+                    totalCents: 4350
+                    currency: EUR
+        "404":
+          description: No such order
+components:
+  schemas:
+    Order:
+      type: object
+      required: [id, status, totalCents, currency]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, PAID, SHIPPED, DELIVERED, CANCELLED]
+        totalCents:
+          type: integer
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
