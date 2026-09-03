@@ -1,0 +1,27 @@
+{
+  "skill_name": "clean-code",
+  "allowed_tools": ["Bash(python *)", "Bash(python3 *)"],
+  "evals": [
+    {
+      "id": 0,
+      "name": "construct-module",
+      "prompt": "write inventory.py for our warehouse service, providing a function reserve_stock(stock, order_lines). stock is a dict mapping SKU string to available quantity; order_lines is a list of dicts like {\"sku\": \"ABC\", \"qty\": 3}. it must return a NEW dict with the reserved quantities subtracted, leaving the input stock dict unmodified. rules: qty must be a positive integer or the function raises ValueError; an unknown SKU raises KeyError; the same SKU may appear on several lines and the quantities accumulate; if the accumulated request for any SKU exceeds what is available, raise ValueError and reserve nothing (all-or-nothing). error messages must tell an operator exactly what went wrong, including the offending SKU and the quantities involved. save it as inventory.py in the current directory.",
+      "expected_output": "Small well-named functions, honest errors with context, input not mutated, edge cases handled",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "refactor-legacy",
+      "prompt": "order_report.py (in the current directory) works, but the team dreads touching it. refactor it so it is readable and maintainable WITHOUT changing its behaviour: running `python order_report.py` must print exactly the same output before and after. save the result over order_report.py.",
+      "expected_output": "Duplication extracted, names reveal intent, guard clauses flatten nesting, magic numbers named, dead code and swallowed exception removed, output identical",
+      "files": ["order_report.py"]
+    },
+    {
+      "id": 2,
+      "name": "review-code",
+      "prompt": "review payment_service.py (in the current directory) and write your findings to review.md, ordered most serious first, with a concrete fix for each finding. do not modify payment_service.py.",
+      "expected_output": "Finds the swallowed exception/false success, misleading get_customer, mutable default, duplication, nesting, flag argument, magic values and dead code; correctness ranked above style",
+      "files": ["payment_service.py"]
+    }
+  ]
+}
