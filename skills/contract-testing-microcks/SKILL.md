@@ -81,7 +81,7 @@ implementation to check conformance (provider side).
 
 ```bash
 # against a running Microcks (CLI 1.x binary is `microcks`)
-microcks test 'Pastry API:1.0.0' http://localhost:8080/api OPEN_API_SCHEMA \
+microcks test 'Pastry API:1.0.0' http://localhost:3000 OPEN_API_SCHEMA \
   --microcksURL=http://localhost:8585/api --waitFor=10sec
 
 # no server at all: ephemeral container from a local spec

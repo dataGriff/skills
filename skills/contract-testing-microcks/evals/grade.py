@@ -50,7 +50,7 @@ def grade_actions_gate(out):
                 "OPEN_API_SCHEMA" in text,
                 f"runners found={sorted(set(re.findall(r'[A-Z_]*SCHEMA|POSTMAN|HTTP', text)))}"))
     has_import = ("microcks/import-github-action" in text
-                  or bool(re.search(r"microcks(-cli)?\s+import(-url|-dir)?\s", text)))
+                  or bool(re.search(r"microcks(-cli)?\s+import(?:-url|-dir)?\s", text)))
     ex.append(E("Imports the committed spec (import action or `microcks import`)",
                 has_import, "grep import action/command"))
     creds_named = bool(re.search(r"keycloakClient(Id|Secret)", text)) or \
@@ -106,7 +106,8 @@ GRADERS = {"eval-0": grade_actions_gate, "eval-1": grade_node_testcontainers}
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
-        grader = GRADERS[re.match(r"eval-\d+", eval_dir.name).group(0)]
+        match = re.match(r"(eval-\d+)(?:-|$)", eval_dir.name)
+        grader = GRADERS[match.group(1)]
         for arm in ("with_skill", "without_skill"):
             out = eval_dir / arm / "outputs"
             if not out.is_dir():
