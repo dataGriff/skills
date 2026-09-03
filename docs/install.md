@@ -26,10 +26,17 @@ To use the skills from *any* project, symlink them into each agent's
 personal skills directory:
 
 ```bash
-task install:skills                    # all three agents
-task install:skills AGENTS=claude      # or a subset
+task install:skills                    # all skills, all three agents
+task install:skills AGENTS=claude      # or a subset of agents
+task install:skills SKILLS=odcs-authoring,datacontract-cli   # or of skills
 task uninstall:skills                  # remove our symlinks, nothing else
+task uninstall:skills SKILLS=api-mocking-microcks            # just one
 ```
+
+Prefer `SKILLS=` subsets on machines that only need one group of skills:
+every installed skill's name + description is loaded into every
+conversation, whether or not the skill triggers, so installing less costs
+less in every session.
 
 This links each `skills/<name>` into `~/.claude/skills/`, `~/.codex/skills/`
 and `~/.copilot/skills/`, one symlink per skill, so they coexist with skills

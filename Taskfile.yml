@@ -29,14 +29,14 @@ tasks:
       - test "$(git config core.hooksPath)" = ".githooks"
 
   install:skills:
-    desc: "Symlink every skill into ~/.claude, ~/.codex and ~/.copilot skill dirs: task install:skills [AGENTS=claude,codex,copilot]"
+    desc: "Symlink skills into ~/.claude, ~/.codex and ~/.copilot skill dirs: task install:skills [AGENTS=claude,codex,copilot] [SKILLS=name,name]"
     cmds:
-      - "{{.PYTHON}} scripts/install_skills.py --agents {{.AGENTS | default \"claude,codex,copilot\"}}"
+      - "{{.PYTHON}} scripts/install_skills.py --agents {{.AGENTS | default \"claude,codex,copilot\"}}{{if .SKILLS}} --skills {{.SKILLS}}{{end}}"
 
   uninstall:skills:
-    desc: "Remove the user-level skill symlinks created by install:skills"
+    desc: "Remove the user-level skill symlinks created by install:skills: task uninstall:skills [AGENTS=...] [SKILLS=...]"
     cmds:
-      - "{{.PYTHON}} scripts/install_skills.py --uninstall --agents {{.AGENTS | default \"claude,codex,copilot\"}}"
+      - "{{.PYTHON}} scripts/install_skills.py --uninstall --agents {{.AGENTS | default \"claude,codex,copilot\"}}{{if .SKILLS}} --skills {{.SKILLS}}{{end}}"
 
   new:skill:
     desc: "Scaffold a new skill: task new:skill NAME=my-skill"
