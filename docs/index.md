@@ -17,6 +17,7 @@ entrypoint, and automated checks for skill quality and context size.
 | ------------------------------ | ---------------------------------------------------------- |
 | [setup.md](setup.md)           | setting up the repo locally (mise, task, hooks)            |
 | [skills.md](skills.md)         | creating or editing a skill; skill best practices          |
+| [install.md](install.md)       | using these skills from Claude Code, Codex, or Copilot     |
 | [tasks.md](tasks.md)           | adding or changing Taskfile tasks; wondering what exists   |
 | [docs-style.md](docs-style.md) | writing docs; deciding where content should live           |
 | [ci.md](ci.md)                 | working on CI, git hooks, or the check scripts             |
@@ -28,6 +29,7 @@ AGENTS.md        agent entrypoint (CLAUDE.md is @AGENTS.md)
 Taskfile.yml     every runnable script — `task --list`
 mise.toml        pinned tool versions
 skills/          one directory per skill
+.claude/ .codex/ symlinks into skills/ so each agent finds them (install.md)
 docs/            this fanout
 scripts/         python behind the check/scaffold tasks (run via task)
 .githooks/       versioned git hooks (installed by `task setup`)

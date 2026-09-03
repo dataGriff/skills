@@ -1,0 +1,24 @@
+{
+  "name": "datagriff",
+  "metadata": {
+    "description": "dataGriff's agent skills: API and data-contract authoring, BDD, mocking, and repo optimization"
+  },
+  "owner": {
+    "name": "dataGriff",
+    "url": "https://github.com/dataGriff"
+  },
+  "plugins": [
+    {
+      "name": "datagriff-skills",
+      "source": "./",
+      "strict": false,
+      "description": "All dataGriff skills as one bundle: OpenAPI, AsyncAPI, ODCS data contracts, datacontract-cli, Gherkin authoring, Microcks API mocking, and agent-ready repo optimization. The plugin root is the repo itself, so its skills/ directory is the plugin's skills - no duplication, and new skills ship automatically.",
+      "author": {
+        "name": "dataGriff",
+        "url": "https://github.com/dataGriff"
+      },
+      "homepage": "https://github.com/dataGriff/skills",
+      "keywords": ["openapi", "asyncapi", "data-contracts", "odcs", "gherkin", "microcks", "agent-skills"]
+    }
+  ]
+}
