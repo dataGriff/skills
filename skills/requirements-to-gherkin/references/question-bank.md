@@ -48,6 +48,9 @@ permission requirements?" every time.
   timezone, and what about daylight-saving transitions?
 - What already exists? Migrations and backfills for existing records are
   requirements too.
+- Does anyone downstream consume this data — a report, another team,
+  another system? Then a data-contract conversation is hiding here: who
+  owns the shape, and what breaks when it changes?
 
 ## Lifecycle and states
 

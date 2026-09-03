@@ -60,6 +60,13 @@ This is example mapping in text form. If the user is facilitating a live
 group session and wants to run the card-based version with stakeholders in
 the room, open [references/example-mapping.md](references/example-mapping.md).
 
+Show the board in chat after each round, but when the work will span
+sessions — questions going out to stakeholders and answers coming back
+later — the board's home is a file (e.g. `discovery.md` next to the
+feature files it will produce), updated as you go. On resuming, read that
+file first, fold new answers into it, and regenerate whatever scenarios
+they touch. A board that lives only in the conversation dies with it.
+
 ## Step 3 — interrogate until rules are decidable
 
 Ask **at most three questions per turn**, most important first — a wall of
@@ -140,6 +147,15 @@ Feature: Refunds
       Then the refund is declined
       And she is told the 30-day window has passed
 ```
+
+Gherkin is not the only artefact the board can feed. Answers about data
+shape, ranges, quality, retention, or SLAs, and about operations, events
+and payloads, are the raw material of data contracts and interface specs:
+when the deliverable includes one, hand the relevant rules and examples to
+the matching authoring skill if available (`datacontract-cli`,
+`odcs-authoring`, `openapi-authoring`, `asyncapi-authoring`) — the board's
+concrete examples double as example records and payloads. Behaviour still
+goes to Gherkin; shape and obligation go to the contract.
 
 ## Step 5 — hand over
 
