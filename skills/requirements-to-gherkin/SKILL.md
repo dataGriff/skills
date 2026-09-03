@@ -107,9 +107,11 @@ Questions list beats an exhaustive interview.
 
 ## Step 4 — convert to Gherkin
 
-Convert only rules whose examples are decidable; everything else stays on
-the Questions list. If the `gherkin-feature-authoring` skill is available,
-apply it for authoring style. Either way the mapping is:
+Convert rules with decidable examples. When an otherwise useful scenario
+needs a provisional outcome, write it beneath an inline `# OPEN:` comment
+that clearly identifies the assumption; otherwise keep it on the Questions
+list. If the `gherkin-feature-authoring` skill is available, apply it for
+authoring style. Either way the mapping is:
 
 - The **Story** becomes the `Feature:` narrative.
 - Each **Rule** becomes a `Rule:` block, worded as on the board.

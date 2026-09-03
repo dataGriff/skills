@@ -21,7 +21,10 @@ UI_WORDS = re.compile(
     r"\burl\b|\bnavigat|\bI open \"|I see the text|into the \"",
     re.I,
 )
-QUESTION_HEADING = re.compile(r"^#+ .*(question|open|unknown|clarif|to confirm|follow.?up)", re.I | re.M)
+QUESTION_HEADING = re.compile(
+    r"^#+ (?:.*\b(?:questions?|unknowns?|clarifications?|follow.?ups?)\b.*|"
+    r"open questions?\b.*|.*\bto confirm\b.*)$", re.I | re.M
+)
 
 
 def E(text, passed, evidence):
@@ -55,7 +58,10 @@ def questions_region(text):
         return ""
     level = m.group(0).split(" ")[0]
     rest = text[m.end():]
-    nxt = re.search(rf"^{level} (?!.*(question|open|unknown|clarif))", rest, re.M | re.I)
+    nxt = re.search(
+        rf"^{level} (?!.*\b(?:questions?|unknowns?|clarifications?|follow.?ups?)\b|"
+        rf"open questions?\b|to confirm\b)", rest, re.M | re.I
+    )
     return rest[: nxt.start()] if nxt else rest
 
 
@@ -154,7 +160,7 @@ GRADERS = {"eval-0": grade_notes_to_gherkin, "eval-1": grade_session_prep}
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
-        grader = GRADERS[eval_dir.name[:6]]
+        grader = GRADERS["-".join(eval_dir.name.split("-", 2)[:2])]
         for arm in ("with_skill", "without_skill"):
             out = eval_dir / arm / "outputs"
             if not out.is_dir():
