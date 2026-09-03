@@ -1,0 +1,21 @@
+{
+  "skill_name": "requirements-to-gherkin",
+  "evals": [
+    {
+      "id": 0,
+      "name": "notes-to-gherkin",
+      "prompt": "I came out of a meeting about adding refunds to our online shop with the notes in meeting-notes.md (current directory). Turn them into something I can actually build from: write requirements.md with the requirements as you understand them plus whatever still needs answering, and refunds.feature with the acceptance criteria as Gherkin scenarios. Don't come back to me with questions in chat — I'll take written follow-ups back to the team.",
+      "expected_output": "requirements.md separates decidable rules (with concrete examples) from open questions; the contradiction, the unknowns and the vague terms land as attributed questions rather than silently invented answers; refunds.feature covers each decidable rule with normal/boundary/rejection scenarios, marks assumptions, and follows Gherkin best practice",
+      "files": [
+        "meeting-notes.md"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "session-prep",
+      "prompt": "Tomorrow I'm meeting our warehouse manager about a new feature: when a shopper starts checkout we reserve their items so they can't be bought by someone else, and the reservation lasts 15 minutes. That one sentence is genuinely all I have so far. I'm bad at requirements meetings — write me questions.md, the sheet I take into the room: the questions to ask, and a structure for capturing the answers so I can turn them into acceptance criteria afterwards.",
+      "expected_output": "questions.md contains a prioritised, grouped question set probing boundaries of the 15-minute rule, failure/rejection paths, concurrency, actors and outcomes — phrased as concrete scenarios — plus a capture structure separating rules, examples and open questions",
+      "files": []
+    }
+  ]
+}
