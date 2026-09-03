@@ -103,6 +103,9 @@ async APIs (broker `testEndpoint` URL formats, one-operation-per-test rule).
   Microcks; Microcks appends each operation's path to it.
 - Keep specs and examples in git and re-import on change (importer job or
   CI import step) so mocks and tests never drift from the source of truth.
+- A failing conformance test means fix the implementation, or renegotiate
+  the spec with its consumers and bump its version — never trim examples
+  or loosen schemas just to pass: the spec is the agreement being gated.
 - Secured implementations: store credentials as a Microcks *Secret* and
   pass its `secretName` to the test rather than embedding tokens.
 

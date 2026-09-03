@@ -70,6 +70,12 @@ end-to-end path through the real architecture, deployed for real. It
 proves the plumbing and makes every later unit an extension instead of an
 integration.
 
+When the work carries executable specifications — Gherkin acceptance
+criteria, an API spec, a data contract — slice along them: one `Rule:`
+(or one scenario) turned green, one endpoint implemented, one contract
+object landed. Spec-shaped units are naturally vertical, their scope is
+already agreed, and the spec's own test gate proves each one done.
+
 If the work resists slicing — a big refactor, a migration, a rewrite, or
 every slice you try comes out horizontal — open
 [references/slicing-patterns.md](references/slicing-patterns.md) for

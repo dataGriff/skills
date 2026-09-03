@@ -166,3 +166,8 @@ what goes back to stakeholders (especially its Questions column), the
 `.feature` file is what goes to the codebase. Offer to update both when
 answers come back — an answered question turns its assumed scenario into
 an agreed one, or rewrites it.
+
+The feature file is also the future test gate: once implementation
+starts, the `cucumber-js-automation` skill (where available, for JS/TS
+projects) turns these scenarios into an executable suite that CI can
+require — so implementations are held to exactly what was agreed here.
