@@ -190,6 +190,10 @@ for each thing the application actually does.
 3. Add protocol bindings where broker config is part of the contract.
 4. Validate when the CLI is installed; fix errors top-to-bottom, then
    bump `info.version` if this replaces a published document.
+5. When the document should gate or unblock development — mocking the
+   events for consumers, or verifying a producer against the contract in
+   CI — hand over to the `api-mocking-microcks` /
+   `contract-testing-microcks` skills (where available).
 
 ## When to open the references
 

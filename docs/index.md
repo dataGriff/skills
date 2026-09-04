@@ -16,6 +16,7 @@ entrypoint, and automated checks for skill quality and context size.
 | Doc                            | Read it when you are…                                      |
 | ------------------------------ | ---------------------------------------------------------- |
 | [setup.md](setup.md)           | setting up the repo locally (mise, task, hooks)            |
+| [workflow.md](workflow.md)     | seeing how the skills chain: requirements → specs → CI gates |
 | [skills.md](skills.md)         | creating or editing a skill; skill best practices          |
 | [install.md](install.md)       | using these skills from Claude Code, Codex, or Copilot     |
 | [tasks.md](tasks.md)           | adding or changing Taskfile tasks; wondering what exists   |

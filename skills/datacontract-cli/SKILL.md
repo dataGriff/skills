@@ -82,6 +82,10 @@ datacontract export html orders.odcs.yaml --output orders.html
   DataContract(data_contract_file="orders.odcs.yaml").test().has_passed()`.
 
 Exit codes are non-zero on failed lint/test — safe to gate pipelines on.
+When a gated `test` fails, fix the data or the producing pipeline, or
+renegotiate the contract with its owners and bump its version — never
+quietly loosen the contract to get a pipeline green: the contract records
+an agreement, and weakening it silently breaks every consumer relying on it.
 
 For writing the contract YAML itself (schema, quality rules, SLAs), use the
 `odcs-authoring` skill.

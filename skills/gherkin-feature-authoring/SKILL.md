@@ -85,6 +85,13 @@ cleared, mocks) · **incidental detail / test-jargon data** · **meaningless
 names** ("Test 1") and **no feature narrative** · **outline abuse** (one
 row, constant columns, mixed accepted/rejected rows).
 
+## After authoring
+
+A finished feature file is a specification waiting to become a test gate,
+not just documentation. When an implementation exists or is starting, hand
+over to the `cucumber-js-automation` skill (where available, for JS/TS
+projects) to bind the scenarios to code and wire the suite into CI.
+
 ## When to open the references
 
 - [references/style.md](references/style.md) — only for the worked

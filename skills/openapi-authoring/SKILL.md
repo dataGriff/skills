@@ -209,6 +209,10 @@ bodies as named component schemas, and declares how callers authenticate.
    global default; add named examples where behaviour isn't obvious (one
    per `oneOf` branch — mocks and docs surface them directly).
 4. Lint and fix top-to-bottom; warnings are usually worth fixing too.
+5. When the spec should gate or unblock development — serving its
+   examples as live mocks for consumers, or verifying an implementation
+   conforms in CI — hand over to the `api-mocking-microcks` /
+   `contract-testing-microcks` skills (where available).
 
 ## When to open the references
 

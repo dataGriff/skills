@@ -21,6 +21,13 @@ run. Writing or improving the `.feature` files themselves is a separate
 concern (the `gherkin-feature-authoring` skill, where available) — keep
 scenarios declarative and put all mechanics below the steps, here.
 
+The feature file is the agreed specification, so work outside-in from it:
+run the suite, let undefined and failing steps drive the implementation,
+repeat until green. Never reword, weaken, or delete a scenario to make a
+run pass — a scenario that looks wrong goes back to whoever owns the
+requirement (or its `# OPEN:` question). Once green, wire the suite into
+the repo's CI entrypoint so the specification gates every future change.
+
 ## Project shape
 
 ```

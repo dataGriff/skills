@@ -75,6 +75,11 @@ Task design patterns and migration guidance: read
   `jdx/mise-action` (reading `mise.toml`), and runs `task ci`. No check
   logic in YAML — if CI-only steps exist, contributors can't reproduce
   failures locally.
+- Executable specifications are part of the one definition of green: when
+  the repo has feature files, API specs, or data contracts with test
+  tooling (a cucumber suite, Microcks contract tests, `datacontract test`),
+  run them from `task ci` too, and route to the spec locations from
+  AGENTS.md so agents read the contracts before writing code.
 
 ### 5. Add automated guardrail checks
 
