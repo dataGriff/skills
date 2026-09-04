@@ -1,0 +1,23 @@
+{
+  "skill_name": "goldratt-4-questions",
+  "evals": [
+    {
+      "id": 0,
+      "name": "proposal-review",
+      "prompt": "Our platform team wants approval for the proposal in proposal.md (current directory). I'm the engineering manager who has to decide. Review it and write assessment.md: your assessment of whether we should adopt, what the proposal gets right or misses, whatever still needs answering before a decision, and a clear recommendation. Don't come back to me with questions in chat — put open questions in the file and I'll take them to the platform team.",
+      "expected_output": "assessment.md separates the technology's real power from its feature list; ties value to the concrete current-state pain (batch staleness, multi-week Jira export queue, morning reconciliation) rather than 'industry best practice'; flags the missing evidence of what the limitation costs as open questions; identifies the existing processes that would have to be retired; challenges the 'no process changes, batch runs in parallel indefinitely' plan as cost without benefit; and ends with a conditional recommendation rather than rubber-stamping adoption",
+      "files": [
+        "proposal.md"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "adoption-post-mortem",
+      "prompt": "Eighteen months ago we adopted CatalogHub, a data catalog. It has barely been used and leadership is asking why we're still paying for it — my notes are in catalog-notes.md (current directory). Write review.md: why the adoption failed to deliver, and what we should do now (renewal is next quarter). Don't ask me questions in chat — write anything that needs answering into the file.",
+      "expected_output": "review.md diagnoses the root cause as adoption without behaviour change: the old ways of finding data (emailing the platform team, #data-help) and documenting it (Confluence) were never retired, populating the catalog was optional, and nobody was asked to stop or change anything — so the org pays for the tool and the old process; it questions/confirms whether the underlying limitation (discovery bottleneck) is real using the 25-requests-a-week evidence; and it recommends a concrete decision for renewal: either make the catalog the enforced path (retire the parallel channels, make population part of the workflow) or decommission it, not more evangelism",
+      "files": [
+        "catalog-notes.md"
+      ]
+    }
+  ]
+}
