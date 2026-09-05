@@ -30,7 +30,10 @@ def grade_proposal_review(out):
         "Ties value to the concrete current-state pain (nightly batch staleness, "
         "multi-week export queue) rather than accepting 'best practice' rhetoric",
         bool(re.search(r"nightly|batch|stale|24[- ]?hour", text, re.I))
-        and bool(re.search(r"two to four weeks|2.4 weeks|weeks|turnaround|jira|export", text, re.I)),
+        and bool(re.search(r"\b(jira|ticket)\b", text, re.I))
+        and bool(re.search(r"\b(export|queue)\b", text, re.I))
+        and bool(re.search(r"\bturnaround\b", text, re.I))
+        and bool(re.search(r"\b(two\s+to\s+four|2\s*[-–]\s*4)\s+weeks\b", text, re.I)),
         "grep batch/staleness + export-queue phrasing"))
     ex.append(E(
         "Flags the missing evidence for the limitation as an open question "
@@ -138,7 +141,11 @@ GRADERS = {"eval-0": grade_proposal_review, "eval-1": grade_adoption_post_mortem
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
-        grader = GRADERS["-".join(eval_dir.name.split("-", 2)[:2])]
+        key = "-".join(eval_dir.name.split("-", 2)[:2])  # "eval-<id>"
+        grader = GRADERS.get(key)
+        if grader is None:
+            sys.exit(f"grade.py: no grader registered for {eval_dir.name} "
+                     f"(known: {sorted(GRADERS)}) — add it to GRADERS")
         for arm in ("with_skill", "without_skill"):
             out = eval_dir / arm / "outputs"
             if not out.is_dir():
