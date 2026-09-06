@@ -5,12 +5,13 @@ Usage (via the Taskfile — the canonical entrypoint):
     task eval:skills                        # every skill with an evals/evals.json
     task eval:skills NAME=x                 # one skill
     task eval:skills NAME=x MODEL=sonnet    # pin both arms to one model
-    task eval:skills NAME=x YES=1           # pre-accept the cost (non-interactive)
+    task eval:skills SKIP=1                 # cost opt-out: report, run nothing
 
-Eval runs spend real tokens, so the runner first reports how many headless
-sessions it is about to start and asks for confirmation. In a
-non-interactive session it refuses to run unless the cost was pre-accepted
-with YES=1 (passed through as --yes).
+Eval runs spend real tokens, so the runner reports how many headless
+sessions it is starting before running them, and honours an off switch for
+anyone who wants to save costs: SKIP=1 on the task (passed through as
+--skip), or SKIP_EVALS=1 in the environment to turn eval runs off
+persistently. Skipped runs exit 0 without starting any session.
 
 MODEL is passed straight to `claude -p --model`; omit it to use the CLI's
 own default. Pin it when you want a reproducible comparison on a specific
@@ -31,6 +32,7 @@ when to run them.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -237,8 +239,8 @@ def write_results_summary(
     print(f"  summary → {out.relative_to(REPO_ROOT)}")
 
 
-def confirm_run(targets: list[Path], assume_yes: bool) -> bool:
-    """Get explicit acceptance before spending tokens on eval sessions."""
+def announce_run(targets: list[Path], skip: bool) -> bool:
+    """State the cost up front; honour the opt-out. Returns True to proceed."""
     total_evals = 0
     for skill_dir in targets:
         spec = json.loads(
@@ -247,46 +249,29 @@ def confirm_run(targets: list[Path], assume_yes: bool) -> bool:
         total_evals += len(spec["evals"])
     sessions = total_evals * 2
     print(
-        f"About to run {total_evals} eval(s) x 2 arms = {sessions} headless "
+        f"Running {total_evals} eval(s) x 2 arms = {sessions} headless "
         f"`claude -p` session(s) for: {', '.join(t.name for t in targets)}."
     )
     print(
         "Eval runs spend real tokens and can take minutes per session "
-        "(past cost/time: each skill's evals/latest-results.md)."
+        "(past cost/time: each skill's evals/latest-results.md). "
+        "To save costs: `task eval:skills SKIP=1` or set SKIP_EVALS=1."
     )
-    if assume_yes:
-        print("Cost pre-accepted via YES=1 — proceeding.")
-        return True
-    if not sys.stdin.isatty():
+    if skip:
         print(
-            "eval_skills: refusing to start eval sessions without explicit "
-            "acceptance in a non-interactive session. Re-run with YES=1, "
-            "e.g. `task eval:skills YES=1`, to accept the cost.",
-            file=sys.stderr,
+            "Skipping eval runs to save costs "
+            "(SKIP=1 / SKIP_EVALS=1) — no sessions started. Note the PR "
+            "then carries no refreshed evals/latest-results.md; CI's "
+            "eval-summary comment will flag stale evidence."
         )
-        return False
-    try:
-        answer = input("Proceed? [y/N] ").strip().lower()
-    except EOFError:
-        answer = ""
-    if answer not in ("y", "yes"):
-        print("Aborted — no eval sessions were started.")
         return False
     return True
 
 
 def main() -> int:
-    if shutil.which("claude") is None:
-        print(
-            "eval_skills: the `claude` CLI is required to run evals "
-            "(https://claude.com/claude-code). Aborting.",
-            file=sys.stderr,
-        )
-        return 2
-
     args = [a for a in sys.argv[1:] if a]
-    assume_yes = "--yes" in args
-    args = [a for a in args if a != "--yes"]
+    skip = "--skip" in args or os.environ.get("SKIP_EVALS", "") not in ("", "0")
+    args = [a for a in args if a != "--skip"]
     name = args[0] if len(args) > 0 else None
     model = args[1] if len(args) > 1 else None
     if name:
@@ -302,8 +287,16 @@ def main() -> int:
             print("eval_skills: no skill defines evals/evals.json — nothing to run.")
             return 0
 
-    if not confirm_run(targets, assume_yes):
-        return 3
+    if not announce_run(targets, skip):
+        return 0
+
+    if shutil.which("claude") is None:
+        print(
+            "eval_skills: the `claude` CLI is required to run evals "
+            "(https://claude.com/claude-code). Aborting.",
+            file=sys.stderr,
+        )
+        return 2
 
     for skill_dir in targets:
         print(f"Evaluating {skill_dir.name}" + (f" on {model}" if model else "") + ":")
