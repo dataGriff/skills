@@ -115,7 +115,9 @@ template asks for the results table in the description, and CI posts each
 changed skill's `latest-results.md` as a sticky PR comment — flagging skills
 changed without refreshed results (see [ci.md](ci.md)). Evals
 cost tokens, take minutes, and are non-deterministic, so they are
-deliberately **not** part of `task ci`. Run them when:
+deliberately **not** part of `task ci`, and the runner asks for explicit
+acceptance (showing the session count) before spending anything — pass
+`YES=1` to pre-accept in scripted or non-interactive runs. Run them when:
 
 - **creating a skill** — to prove it beats the no-skill baseline at all;
 - **meaningfully editing one** — changed workflow, rewritten guidance, new

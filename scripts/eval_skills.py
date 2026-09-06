@@ -5,6 +5,12 @@ Usage (via the Taskfile — the canonical entrypoint):
     task eval:skills                        # every skill with an evals/evals.json
     task eval:skills NAME=x                 # one skill
     task eval:skills NAME=x MODEL=sonnet    # pin both arms to one model
+    task eval:skills NAME=x YES=1           # pre-accept the cost (non-interactive)
+
+Eval runs spend real tokens, so the runner first reports how many headless
+sessions it is about to start and asks for confirmation. In a
+non-interactive session it refuses to run unless the cost was pre-accepted
+with YES=1 (passed through as --yes).
 
 MODEL is passed straight to `claude -p --model`; omit it to use the CLI's
 own default. Pin it when you want a reproducible comparison on a specific
@@ -231,6 +237,44 @@ def write_results_summary(
     print(f"  summary → {out.relative_to(REPO_ROOT)}")
 
 
+def confirm_run(targets: list[Path], assume_yes: bool) -> bool:
+    """Get explicit acceptance before spending tokens on eval sessions."""
+    total_evals = 0
+    for skill_dir in targets:
+        spec = json.loads(
+            (skill_dir / "evals" / "evals.json").read_text(encoding="utf-8")
+        )
+        total_evals += len(spec["evals"])
+    sessions = total_evals * 2
+    print(
+        f"About to run {total_evals} eval(s) x 2 arms = {sessions} headless "
+        f"`claude -p` session(s) for: {', '.join(t.name for t in targets)}."
+    )
+    print(
+        "Eval runs spend real tokens and can take minutes per session "
+        "(past cost/time: each skill's evals/latest-results.md)."
+    )
+    if assume_yes:
+        print("Cost pre-accepted via YES=1 — proceeding.")
+        return True
+    if not sys.stdin.isatty():
+        print(
+            "eval_skills: refusing to start eval sessions without explicit "
+            "acceptance in a non-interactive session. Re-run with YES=1, "
+            "e.g. `task eval:skills YES=1`, to accept the cost.",
+            file=sys.stderr,
+        )
+        return False
+    try:
+        answer = input("Proceed? [y/N] ").strip().lower()
+    except EOFError:
+        answer = ""
+    if answer not in ("y", "yes"):
+        print("Aborted — no eval sessions were started.")
+        return False
+    return True
+
+
 def main() -> int:
     if shutil.which("claude") is None:
         print(
@@ -240,8 +284,11 @@ def main() -> int:
         )
         return 2
 
-    name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else None
-    model = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
+    args = [a for a in sys.argv[1:] if a]
+    assume_yes = "--yes" in args
+    args = [a for a in args if a != "--yes"]
+    name = args[0] if len(args) > 0 else None
+    model = args[1] if len(args) > 1 else None
     if name:
         targets = [SKILLS_DIR / name]
         if not (targets[0] / "evals" / "evals.json").is_file():
@@ -254,6 +301,9 @@ def main() -> int:
         if not targets:
             print("eval_skills: no skill defines evals/evals.json — nothing to run.")
             return 0
+
+    if not confirm_run(targets, assume_yes):
+        return 3
 
     for skill_dir in targets:
         print(f"Evaluating {skill_dir.name}" + (f" on {model}" if model else "") + ":")
