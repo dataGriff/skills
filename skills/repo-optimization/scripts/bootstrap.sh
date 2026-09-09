@@ -26,7 +26,11 @@ export PATH="$BIN_DIR:$PATH"
 
 persist_path() {
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-    echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+    local path_export="export PATH=\"$BIN_DIR:\$PATH\""
+    touch "$CLAUDE_ENV_FILE"
+    if ! grep -Fqx "$path_export" "$CLAUDE_ENV_FILE"; then
+      echo "$path_export" >> "$CLAUDE_ENV_FILE"
+    fi
   fi
 }
 

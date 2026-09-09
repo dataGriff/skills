@@ -73,7 +73,8 @@ seen in eval runs, and worse than the Makefile they replaced:
 - A command containing `{{ }}` templates (`{{.CLI_ARGS}}`, `{{.PYTHON}}`)
   must be quoted, and never sit inside flow style (`cmds: [ ... ]`).
   Prefer block style throughout; it has no such edge cases.
-- If you cannot run `task` where you are working, at least parse the file:
+- If you cannot run `task` where you are working, at least parse the file
+  with any YAML parser you already have. For example, with PyYAML installed:
   `python3 -c 'import yaml,sys; yaml.safe_load(open("Taskfile.yml"))'`.
 
 Conventions:
