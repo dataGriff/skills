@@ -19,6 +19,16 @@ That's it. `mise.toml` is the single source of truth for tool versions —
 never install `task` or `python` globally for this repo, and never bump a
 version outside `mise.toml`.
 
+## Sandboxes and containers
+
+Claude Code on the web, fresh CI runners, and similar environments start
+without mise. `scripts/bootstrap.sh` closes that gap: it uses `task` if
+present, else mise if present, else installs mise, else downloads the
+`task` version pinned in `mise.toml` straight from its GitHub release. It is
+idempotent and is the only script in this repo meant to be run directly.
+The committed SessionStart hook (`.claude/hooks/session-start.sh`, wired in
+`.claude/settings.json`) runs it automatically for Claude Code on the web.
+
 ## Verifying
 
 ```bash

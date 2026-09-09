@@ -29,7 +29,8 @@ AGENTS.md        agent entrypoint (CLAUDE.md is @AGENTS.md)
 Taskfile.yml     every runnable script — `task --list`
 mise.toml        pinned tool versions
 skills/          one directory per skill
-.claude/ .codex/ symlinks into skills/ so each agent finds them (install.md)
+.claude/ .codex/ symlinks into skills/ (install.md); .claude/ also holds the
+                 SessionStart hook that bootstraps `task` on the web (setup.md)
 docs/            this fanout
 scripts/         python behind the check/scaffold tasks (run via task)
 .githooks/       versioned git hooks (installed by `task setup`)

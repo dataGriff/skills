@@ -36,6 +36,11 @@ SKILL_MD_MAX_TOKENS = 5000
 # splitting the suite into separately installable groups.
 SUITE_METADATA_MAX_TOKENS = 3500
 
+# What an agent should be able to orient with: the always-loaded layer plus
+# one routing hop. Reported every run so drift is visible before a per-file
+# budget trips; only the per-file budgets above fail the build.
+COLD_START_TARGET_TOKENS = 1500
+
 
 def estimate_tokens(text: str) -> int:
     return len(text) // 4
@@ -50,6 +55,37 @@ def frontmatter(text: str) -> str:
         if lines[i].strip() == "---":
             return "\n".join(lines[1:i])
     return ""
+
+
+def print_cold_start_report() -> None:
+    """Show the token cost of orienting in this repo, layer by layer.
+
+    Layer 0 is loaded into every session (CLAUDE.md expands to AGENTS.md);
+    layer 1 is the routing hop; layer 2 lists each topic doc so the reader
+    can see what one task's route costs. Numbers, not pass/fail: the point
+    is to make a cost change visible in the run output."""
+    def tokens_of(rel: str) -> int:
+        path = REPO_ROOT / rel
+        return estimate_tokens(path.read_text(encoding="utf-8")) if path.is_file() else 0
+
+    always = tokens_of("AGENTS.md")
+    hop = tokens_of("docs/index.md")
+    print("check_context: cold-start report (est. tokens, chars/4)")
+    print(f"  always loaded  AGENTS.md (via CLAUDE.md)   {always:>6}")
+    print(f"  routing hop    docs/index.md               {hop:>6}")
+    print(f"  orient total   (target <= {COLD_START_TARGET_TOKENS})           {always + hop:>6}")
+    docs_dir = REPO_ROOT / "docs"
+    if docs_dir.is_dir():
+        for doc in sorted(docs_dir.rglob("*.md")):
+            rel = doc.relative_to(REPO_ROOT)
+            if str(rel) == "docs/index.md":
+                continue
+            print(f"  topic doc      {str(rel):<28}{tokens_of(str(rel)):>6}")
+    if always + hop > COLD_START_TARGET_TOKENS:
+        print(
+            f"  note: orienting costs more than {COLD_START_TARGET_TOKENS} tokens; "
+            "move rules out of AGENTS.md into routed docs."
+        )
 
 
 def main() -> int:
@@ -121,6 +157,8 @@ def main() -> int:
                 "split the suite into separately installable groups "
                 "(task install:skills SKILLS=...)."
             )
+
+    print_cold_start_report()
 
     for error in errors:
         print(f"ERROR: {error}")

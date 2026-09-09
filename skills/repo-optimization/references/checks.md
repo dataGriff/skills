@@ -15,6 +15,13 @@ Fail the build when the always-loaded layer grows. Check:
 Error messages should teach the fix: "move detail deeper into the fanout",
 not just "too long".
 
+Print a **cold-start report** on every run, pass or fail: tokens for the
+always-loaded layer (AGENTS.md via CLAUDE.md), the routing hop
+(docs/index.md), their sum against a target (~1500), and each topic doc.
+A budget only speaks when it trips; the report makes a creeping cost
+visible in every hook and CI run, and gives the before/after numbers the
+skill's verify step asks for.
+
 ## 2. Convention checks
 
 Repo-specific structure rules. For a skills repo:

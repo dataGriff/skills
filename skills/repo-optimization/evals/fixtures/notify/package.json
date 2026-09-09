@@ -1,0 +1,21 @@
+{
+  "name": "notify",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "worker": "tsx src/queue/worker.ts",
+    "build": "tsup src/server.ts src/queue/worker.ts --format esm",
+    "build:templates": "mjml src/templates/*.mjml -o src/templates/compiled",
+    "test": "vitest run",
+    "test:integration": "vitest run --dir test/integration",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "loadtest": "k6 run test/load/send.js",
+    "gen:sdk": "openapi-typescript openapi.yaml -o src/generated/sdk.ts",
+    "seed": "tsx test/seed/load.ts",
+    "queue:pause": "tsx src/queue/admin.ts pause",
+    "queue:resume": "tsx src/queue/admin.ts resume"
+  }
+}
