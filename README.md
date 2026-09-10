@@ -16,6 +16,8 @@ task setup     # install git hooks + verify environment
 task --list    # see every available command
 ```
 
+No mise (sandbox, fresh container)? `scripts/bootstrap.sh` installs `task`.
+
 Everything runnable lives in the [Taskfile](Taskfile.yml). Docs are
 deliberately thin at the top and fan out from [docs/index.md](docs/index.md) —
 read only what the task at hand needs.

@@ -1,0 +1,18 @@
+# Currently at .github/workflows/ci.yml in the real repo (flattened here).
+name: CI
+on: [push, pull_request]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: npm install
+      - run: ruff check orders tests
+      - run: mypy orders
+      - run: npm run lint
+      - run: pytest tests/unit -q

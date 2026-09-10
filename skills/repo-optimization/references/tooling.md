@@ -22,29 +22,60 @@ tool.
 version: "3"
 tasks:
   default:            # `task` alone lists everything — discoverability
+    desc: "List all available tasks"
     silent: true
-    cmds: [task --list]
+    cmds:
+      - task --list
 
   setup:              # one command from clone to working
+    desc: "One-time setup: install git hooks"
     cmds:
       - task: hooks:install
 
   hooks:install:
+    desc: "Point git at the versioned hooks in .githooks/"
     cmds:
       - git config core.hooksPath .githooks
       - chmod +x .githooks/*
     status:           # idempotent — safe to re-run
       - test "$(git config core.hooksPath)" = ".githooks"
 
+  test:
+    desc: "Run the tests; pass a path to run one file: task test -- path"
+    cmds:
+      - "pytest {{.CLI_ARGS}}"
+
   check:              # aggregate; hooks and ci compose from here
+    desc: "Run every check (what the hooks and CI run)"
     cmds:
       - task: check:conventions
       - task: check:context
 
-  pre-commit: {cmds: [{task: check}]}       # hook entrypoints
-  pre-push:   {cmds: [{task: ci}]}
-  ci:         {cmds: [{task: check}]}       # THE definition of green
+  pre-commit:         # hook entrypoints
+    desc: "Fast checks run by the pre-commit hook"
+    cmds:
+      - task: check
+  pre-push:
+    desc: "Full checks run by the pre-push hook"
+    cmds:
+      - task: ci
+  ci:                 # THE definition of green
+    desc: "Everything CI runs"
+    cmds:
+      - task: check
 ```
+
+YAML traps that silently produce a Taskfile `task` refuses to load — both
+seen in eval runs, and worse than the Makefile they replaced:
+
+- A `desc:` containing a colon (`desc: Check docs: routes exist`) is a
+  YAML error. Quote every `desc:`.
+- A command containing `{{ }}` templates (`{{.CLI_ARGS}}`, `{{.PYTHON}}`)
+  must be quoted, and never sit inside flow style (`cmds: [ ... ]`).
+  Prefer block style throughout; it has no such edge cases.
+- If you cannot run `task` where you are working, at least parse the file
+  with any YAML parser you already have. For example, with PyYAML installed:
+  `python3 -c 'import yaml,sys; yaml.safe_load(open("Taskfile.yml"))'`.
 
 Conventions:
 
@@ -61,6 +92,30 @@ Absorb, don't delete: Makefile targets, `package.json` scripts, README
 shell snippets, and loose `bin/` scripts each become a task (possibly just
 wrapping the original command). Leave a Makefile shim only if external
 systems call it (`make test: ; task test`).
+
+## Sandboxes: bootstrap `task` where mise is absent
+
+Claude Code on the web, fresh containers, and CI runners without
+`mise-action` have neither mise nor `task`, so "run `task --list` first"
+cannot be followed and hooks that hard-fail on a missing `task` block every
+commit. Ship a bootstrap that closes the gap and is the one script allowed
+to be run directly.
+
+Copy [scripts/bootstrap.sh](../scripts/bootstrap.sh) from this skill into
+the target repo's `scripts/` unchanged. It is idempotent and tries, in
+order: `task` already present; `mise install` if mise is present; the mise
+installer; and finally the `task` version pinned in `mise.toml`, downloaded
+from its GitHub release (installer hosts are often blocked by egress
+policies while GitHub is allowed). When run as a Claude Code hook it
+persists PATH through `$CLAUDE_ENV_FILE`.
+
+
+Wire it into Claude Code on the web with a SessionStart hook in
+`.claude/settings.json` pointing at `.claude/hooks/session-start.sh`, which
+exits early unless `CLAUDE_CODE_REMOTE=true` and otherwise execs the
+bootstrap. Name the script in AGENTS.md: "if `task` is missing, run
+`scripts/bootstrap.sh` once". Test the fallback path with the mise host
+blocked — egress policies commonly block it while allowing GitHub.
 
 ## Git hooks
 

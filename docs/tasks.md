@@ -13,6 +13,9 @@ does — use it or extend it. Do **not**:
 - add a new script that overlaps an existing one,
 - invoke `scripts/*.py` directly (the task is the stable interface).
 
+The one exception is `scripts/bootstrap.sh`, which installs `task` itself
+when an environment lacks it ([setup.md](setup.md)).
+
 Duplicated logic drifts: the hook version passes while the CI version fails,
 and nobody notices until a broken push. One task, called from everywhere,
 cannot drift.

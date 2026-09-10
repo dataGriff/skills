@@ -12,6 +12,22 @@ An agent's cold-start cost is README/AGENTS + index only; every deeper doc
 is opt-in. Optimize for the reader who needs *one* topic, not the reader who
 reads everything.
 
+## When fanout pays
+
+Each arrow above is a Read call — a tool turn on every task that follows
+it — so routing is not free. Decide by size and shape:
+
+| Agent-relevant docs        | Shape                                       |
+| -------------------------- | ------------------------------------------- |
+| under ~2000 tokens         | one AGENTS.md, no index; CLAUDE.md includes it |
+| more, one kind of task     | AGENTS.md + one topic doc, linked directly  |
+| more, several task types   | full fanout via docs/index.md               |
+
+Two hops maximum from AGENTS.md to the detail a task needs. A page that
+only routes onward again should be merged into its parent. If a routed
+doc is needed by nearly every task, it belongs in AGENTS.md after all —
+one file the agent already has beats a Read call on every task.
+
 ## Budgets (starting points — enforce them with a check script)
 
 | File            | Lines | ~Tokens | Purpose                              |

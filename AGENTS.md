@@ -9,7 +9,9 @@ and read only the doc that matches your task.
 1. **Reuse the Taskfile.** Run `task --list` before writing any script or
    one-off command. If a task already does it, use the task. Only add a new
    task when nothing existing covers the need — and add it to `Taskfile.yml`,
-   never as a loose script invocation that others can't discover.
+   never as a loose script invocation that others can't discover. If
+   `task` is missing (sandboxes, fresh containers), run
+   `scripts/bootstrap.sh` once — the one script meant to be called directly.
 2. **Validate before committing.** `task check` runs skill best-practice and
    context-size checks. Git hooks run it automatically (`task setup` installs
    them). CI runs `task ci`.

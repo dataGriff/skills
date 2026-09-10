@@ -22,7 +22,11 @@ local and remote can never disagree about what gets checked.
   [skills.md](skills.md).
 - `task check:context` (`scripts/check_context.py`) — context-size budgets:
   README/AGENTS/docs/index line+token limits, `CLAUDE.md == @AGENTS.md`,
-  topic doc size, SKILL.md token budget.
+  topic doc size, SKILL.md token budget. It also prints the cold-start
+  report: what an agent pays before any work (AGENTS.md via CLAUDE.md),
+  the routing hop (docs/index.md), and each topic doc, so a change that
+  makes orientation dearer is visible in the run, not just when a budget
+  finally trips.
 
 Both scripts are stdlib-only python; budgets are constants at the top of
 each script. Change a budget deliberately, in the script, with a reason in
