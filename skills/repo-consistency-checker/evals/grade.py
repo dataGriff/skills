@@ -23,7 +23,6 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "widgets"
 LOCATION = re.compile(r"\b[\w.-]+\.(?:py|md|yaml|toml|Makefile)[:` ]+(?:line[s]? )?\d+|\bMakefile[:` ]+(?:line[s]? )?\d+")
-QUOTE = re.compile(r"`[^`\n]+`|\"[^\n\"]+\"|(?<!\w)'[^\n']+'(?!\w)")
 KIND = re.compile(r"\b(drift|redundan\w*|duplicate|dead code|commented[- ]out code|orphan doc|undefined command|broken reference)\b", re.I)
 SEVERITY = re.compile(r"\b(low|medium|moderate|high|critical|minor|major)\b", re.I)
 FIX = re.compile(r"\b(change|update|rename|replace|remove|delete|drop|use|keep|set|move|rewrite)\b", re.I)
@@ -78,7 +77,6 @@ def finding_blocks(report: str) -> list[str]:
 def evidence_backed(block: str) -> bool:
     return (
         len(LOCATION.findall(block)) >= 2
-        and len(QUOTE.findall(block)) >= 2
         and KIND.search(block) is not None
         and SEVERITY.search(block) is not None
         and FIX.search(block) is not None

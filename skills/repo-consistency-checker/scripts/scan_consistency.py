@@ -402,11 +402,20 @@ class Scanner:
                         task_indent = indent if task_indent is None else task_indent
                         if indent == task_indent:
                             targets["task"].add(m.group(2))
-                    if in_includes and m:
-                        indent = len(m.group(1))
-                        include_indent = indent if include_indent is None else include_indent
-                        if indent == include_indent:
-                            targets["task_includes"].add(m.group(2))
+                    if in_includes:
+                        list_item = re.match(r"^(\s*)-\s+([A-Za-z0-9_:.\-]+):", line)
+                        if list_item:
+                            indent = len(list_item.group(1))
+                            if indent > includes_section_indent:
+                                include_indent = indent if include_indent is None else include_indent
+                                if indent == include_indent:
+                                    targets["task_includes"].add(list_item.group(2))
+                        elif m:
+                            indent = len(m.group(1))
+                            if indent > includes_section_indent:
+                                include_indent = indent if include_indent is None else include_indent
+                                if indent == include_indent:
+                                    targets["task_includes"].add(m.group(2))
             elif path.name in ("Makefile", "GNUmakefile", "makefile") or path.suffix == ".mk":
                 has["make"] = True
                 for line in text.splitlines():
