@@ -120,13 +120,21 @@ MARKER = re.compile(r"\b(TODO|FIXME|XXX|HACK|TBD)\b")
 NUMERIC_CLAIM = re.compile(
     r"\b(max(imum)?|min(imum)?|at most|at least|under|over|up to|limit|budget|"
     r"default|retries|retry|retried|times|timeout|port|second|seconds|minute|"
-    r"minutes|hour|hours|ms|MB|KB|GB|lines|tokens|characters|chars|bytes|"
-    r"percent|%|items|entries|rows|workers|threads|connections|attempts|"
+    r"minutes|hour|hours|ms|MB|KB|GB|line|lines|token|tokens|character|characters|"
+    r"char|chars|byte|bytes|percent|%|item|items|entry|entries|row|rows|"
+    r"worker|workers|thread|threads|connection|connections|attempt|attempts|"
     r"requires|version)\b",
     re.I,
 )
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)(?![\w.]|\.\d)")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+NUMBER_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "once": "1",
+    "two": "2",
+    "twice": "2",
+}
 
 CODEISH_START = re.compile(
     r"^(def |class |return\b|import |from \S+ import|if \(|if .*:$|for .*:$|"
@@ -350,23 +358,34 @@ class Scanner:
 
     # -- commands -------------------------------------------------------
     def collect_targets(self) -> dict[str, set[str]]:
-        targets: dict[str, set[str]] = {"task": set(), "make": set(), "npm": set()}
+        targets: dict[str, set[str]] = {
+            "task": set(),
+            "task_includes": set(),
+            "make": set(),
+            "npm": set(),
+        }
         has: dict[str, bool] = {"task": False, "make": False, "npm": False}
         for path, text in self.texts.items():
             if path.name in ("Taskfile.yml", "Taskfile.yaml"):
                 has["task"] = True
                 in_tasks = False
+                in_includes = False
                 for line in text.splitlines():
                     if re.match(r"^tasks:\s*$", line):
                         in_tasks = True
                         continue
+                    if re.match(r"^includes:\s*$", line):
+                        in_includes = True
+                        continue
                     if in_tasks and re.match(r"^\S", line):
                         in_tasks = False
+                    if in_includes and re.match(r"^\S", line):
+                        in_includes = False
                     m = re.match(r"^  ([A-Za-z0-9_:.\-]+):", line)
                     if in_tasks and m:
                         targets["task"].add(m.group(1))
-                if re.search(r"^includes:", text, re.M):
-                    targets["task"].add("__includes__")
+                    if in_includes and m:
+                        targets["task_includes"].add(m.group(1))
             elif path.name in ("Makefile", "GNUmakefile", "makefile") or path.suffix == ".mk":
                 has["make"] = True
                 for line in text.splitlines():
@@ -401,7 +420,7 @@ class Scanner:
                     name = m.group(1).rstrip(":.")
                     if name in TASK_STOPWORDS or name in targets["task"] or PLACEHOLDER_NAME.match(name):
                         continue
-                    if ":" in name and "__includes__" in targets["task"]:
+                    if ":" in name and name.split(":", 1)[0] in targets["task_includes"]:
                         continue
                     if not self.has_runner["task"]:
                         msg = f"`task {name}` but no Taskfile.yml in the repo"
@@ -562,17 +581,23 @@ class Scanner:
     # -- numeric claims -------------------------------------------------
     @staticmethod
     def claim_numbers(sentence: str) -> list[str]:
-        """Integers within a few words of a limit-ish word. Dotted numbers
-        are versions - the Version claim type covers those by reading."""
+        """Numbers close to a limit-ish word. Dotted numbers are versions -
+        the Version claim type covers those by reading."""
         words = sentence.split()
         out = []
         for idx, w in enumerate(words):
             m = NUMBER.search(w)
-            if not m or "." in m.group(1) or m.group(1) in ("0", "1", "2"):
+            n = None
+            if m and "." not in m.group(1):
+                n = m.group(1)
+            else:
+                token = re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", w).lower()
+                n = NUMBER_WORDS.get(token)
+            if n is None:
                 continue
             window = " ".join(words[max(0, idx - NUMERIC_PROXIMITY_WORDS): idx + NUMERIC_PROXIMITY_WORDS + 1])
             if NUMERIC_CLAIM.search(window):
-                out.append(m.group(1))
+                out.append(n)
         return out
 
     def scan_numeric_claims(self):

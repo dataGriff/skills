@@ -23,6 +23,10 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "widgets"
 LOCATION = re.compile(r"\b[\w.-]+\.(?:py|md|yaml|toml|Makefile)[:` ]+(?:line[s]? )?\d+|\bMakefile[:` ]+(?:line[s]? )?\d+")
+QUOTE = re.compile(r"`[^`\n]+`|\"[^\n\"]+\"|'[^\n']+'")
+KIND = re.compile(r"\b(drift|redundan\w*|duplicate|dead code|commented[- ]out code|orphan doc|undefined command|broken reference)\b", re.I)
+SEVERITY = re.compile(r"\b(low|medium|moderate|high|critical|minor|major)\b", re.I)
+FIX = re.compile(r"\b(fix|change|update|rename|replace|remove|delete|drop|use|keep)\b", re.I)
 
 
 def E(text, passed, evidence):
@@ -43,6 +47,50 @@ def any_of(text: str, *needles: str) -> bool:
     return any(n.lower() in low for n in needles)
 
 
+def finding_blocks(report: str) -> list[str]:
+    blocks = []
+    paragraph = []
+    for line in report.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("|") and not re.match(r"^\|\s*[-: ]+\|\s*$", stripped):
+            if paragraph:
+                blocks.append("\n".join(paragraph))
+                paragraph = []
+            blocks.append(stripped)
+            continue
+        if stripped:
+            paragraph.append(stripped)
+            continue
+        if paragraph:
+            blocks.append("\n".join(paragraph))
+            paragraph = []
+    if paragraph:
+        blocks.append("\n".join(paragraph))
+    return blocks
+
+
+def evidence_backed(block: str) -> bool:
+    return (
+        len(LOCATION.findall(block)) >= 2
+        and len(QUOTE.findall(block)) >= 2
+        and KIND.search(block) is not None
+        and SEVERITY.search(block) is not None
+        and FIX.search(block) is not None
+    )
+
+
+def has_finding(report: str, *needles: str | tuple[str, ...]) -> bool:
+    for block in finding_blocks(report):
+        low = block.lower()
+        if all(
+            any(option.lower() in low for option in needle) if isinstance(needle, tuple)
+            else needle.lower() in low
+            for needle in needles
+        ) and evidence_backed(block):
+            return True
+    return False
+
+
 # ---------------------------------------------------------------- eval-0
 def grade_report(out: Path):
     ex = []
@@ -51,26 +99,26 @@ def grade_report(out: Path):
     ex.append(E("CONSISTENCY_REPORT.md written", bool(report), report_path))
 
     checks = [
-        ("`make test` (README) vs Makefile target `test-unit`", has(report, "test-unit") and any_of(report, "make test`", "make test ", "`make test")),
-        ("`settings.yaml` named in docs vs real `config.yaml`", has(report, "settings.yaml", "config.yaml")),
-        ("port 8080 in docs vs 8000 in config.yaml", has(report, "8080", "8000")),
-        ("fetch_widget docstring 'returns None' vs code raising WidgetNotFound", has(report, "widgetnotfound") and any_of(report, "returns none", "return none", "none when", "none")),
-        ("retry count: comment/README say 3 vs MAX_RETRIES = 5", any_of(report, "max_retries", "retr") and has(report, "5") and any_of(report, "3", "three")),
-        ("Python 3.11 (CONTRIBUTING) vs 3.12 (README, pyproject)", has(report, "3.11", "3.12")),
-        ("CONTRIBUTING duplicates the README setup section", has(report, "contributing") and any_of(report, "duplicate", "repeat", "redundan", "copy", "verbatim", "same setup", "identical")),
-        ("lint tool: CONTRIBUTING says ruff, Makefile runs flake8", has(report, "ruff", "flake8")),
-        ("dead code: helpers.legacy_format has no callers", has(report, "legacy_format")),
-        ("commented-out refresh_catalogue block", has(report, "refresh_catalogue") or any_of(report, "commented-out", "commented out")),
-        ("stale TODO: 'add caching once WidgetCache exists' but WidgetCache is used", has(report, "todo") and has(report, "widgetcache")),
-        ("sync_worker.py documented (README layout, ARCHITECTURE) but removed", has(report, "sync_worker")),
-        ("unused config key legacy_endpoint", has(report, "legacy_endpoint")),
+        ("`make test` (README) vs Makefile target `test-unit`", has_finding(report, "test-unit", "make test")),
+        ("`settings.yaml` named in docs vs real `config.yaml`", has_finding(report, "settings.yaml", "config.yaml")),
+        ("port 8080 in docs vs 8000 in config.yaml", has_finding(report, "8080", "8000")),
+        ("fetch_widget docstring 'returns None' vs code raising WidgetNotFound", has_finding(report, "widgetnotfound", ("returns none", "return none", "none when", "none"))),
+        ("retry count: comment/README say 3 vs MAX_RETRIES = 5", has_finding(report, ("max_retries", "retr"), "5", ("3", "three"))),
+        ("Python 3.11 (CONTRIBUTING) vs 3.12 (README, pyproject)", has_finding(report, "3.11", "3.12")),
+        ("CONTRIBUTING duplicates the README setup section", has_finding(report, "contributing", ("duplicate", "repeat", "redundan", "copy", "verbatim", "same setup", "identical"))),
+        ("lint tool: CONTRIBUTING says ruff, Makefile runs flake8", has_finding(report, "ruff", "flake8")),
+        ("dead code: helpers.legacy_format has no callers", has_finding(report, "legacy_format")),
+        ("commented-out refresh_catalogue block", has_finding(report, ("refresh_catalogue", "commented-out", "commented out"))),
+        ("stale TODO: 'add caching once WidgetCache exists' but WidgetCache is used", has_finding(report, "todo", "widgetcache")),
+        ("sync_worker.py documented (README layout, ARCHITECTURE) but removed", has_finding(report, "sync_worker")),
+        ("unused config key legacy_endpoint", has_finding(report, "legacy_endpoint")),
     ]
     for text, passed in checks:
-        ex.append(E(f"finds: {text}", passed, "keyword search in report"))
+        ex.append(E(f"finds: {text}", passed, "matching structured finding in report"))
 
-    locs = LOCATION.findall(report)
-    ex.append(E("findings cite file:line locations (evidence, not vibes): >= 8 citations",
-                len(locs) >= 8, f"{len(locs)} citations, e.g. {locs[:3]}"))
+    structured = [block for block in finding_blocks(report) if evidence_backed(block)]
+    ex.append(E("findings are evidence-backed: >= 8 include two citations, quoted text, kind, severity, and a fix",
+                len(structured) >= 8, f"{len(structured)} structured findings, e.g. {structured[:2]}"))
 
     # A finding *about* CHANGELOG is a table row or heading whose claim
     # side names it; prose that cites the changelog as evidence is fine.
