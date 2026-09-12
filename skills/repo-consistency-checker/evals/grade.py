@@ -72,10 +72,15 @@ def grade_report(out: Path):
     ex.append(E("findings cite file:line locations (evidence, not vibes): >= 8 citations",
                 len(locs) >= 8, f"{len(locs)} citations, e.g. {locs[:3]}"))
 
-    changelog_lines = [l for l in report.splitlines() if "changelog" in l.lower()]
-    flagged_history = [l for l in changelog_lines
-                       if re.search(r"\b(stale|drift|outdated|wrong|incorrect|inconsisten|contradict)", l, re.I)
-                       and not re.search(r"\b(not |history|historical|record|confirms|consistent with|leave|left|intentional)", l, re.I)]
+    # A finding *about* CHANGELOG is a table row or heading whose claim
+    # side names it; prose that cites the changelog as evidence is fine.
+    flagged_history = []
+    for l in report.splitlines():
+        if not re.match(r"\s*(\|\s*\d+\s*\||#{1,4}\s+\d+|\d+\.\s)", l):
+            continue
+        claim_side = l.split("|")[4] if l.count("|") >= 5 else l
+        if re.search(r"changelog\.md:\d+", claim_side, re.I) and not re.search(r"\b(not|history|historical)\b", claim_side, re.I):
+            flagged_history.append(l)
     ex.append(E("CHANGELOG entries are treated as history, not flagged as drift",
                 bool(report) and not flagged_history, flagged_history[:2]))
 
