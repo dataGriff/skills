@@ -50,20 +50,26 @@ def any_of(text: str, *needles: str) -> bool:
 def finding_blocks(report: str) -> list[str]:
     blocks = []
     paragraph = []
+    table = []
     for line in report.splitlines():
         stripped = line.strip()
-        if stripped.startswith("|") and not re.match(r"^\|\s*[-: ]+\|\s*$", stripped):
+        if stripped.startswith("|"):
             if paragraph:
                 blocks.append("\n".join(paragraph))
                 paragraph = []
-            blocks.append(stripped)
+            table.append(stripped)
             continue
+        if table:
+            blocks.append("\n".join(table))
+            table = []
         if stripped:
             paragraph.append(stripped)
             continue
         if paragraph:
             blocks.append("\n".join(paragraph))
             paragraph = []
+    if table:
+        blocks.append("\n".join(table))
     if paragraph:
         blocks.append("\n".join(paragraph))
     return blocks

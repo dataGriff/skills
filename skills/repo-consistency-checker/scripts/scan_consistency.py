@@ -370,22 +370,34 @@ class Scanner:
                 has["task"] = True
                 in_tasks = False
                 in_includes = False
+                task_indent = None
+                include_indent = None
                 for line in text.splitlines():
                     if re.match(r"^tasks:\s*$", line):
                         in_tasks = True
+                        task_indent = None
                         continue
                     if re.match(r"^includes:\s*$", line):
                         in_includes = True
+                        include_indent = None
                         continue
                     if in_tasks and re.match(r"^\S", line):
                         in_tasks = False
+                        task_indent = None
                     if in_includes and re.match(r"^\S", line):
                         in_includes = False
-                    m = re.match(r"^  ([A-Za-z0-9_:.\-]+):", line)
+                        include_indent = None
+                    m = re.match(r"^(\s+)([A-Za-z0-9_:.\-]+):", line)
                     if in_tasks and m:
-                        targets["task"].add(m.group(1))
+                        indent = len(m.group(1))
+                        task_indent = indent if task_indent is None else task_indent
+                        if indent == task_indent:
+                            targets["task"].add(m.group(2))
                     if in_includes and m:
-                        targets["task_includes"].add(m.group(1))
+                        indent = len(m.group(1))
+                        include_indent = indent if include_indent is None else include_indent
+                        if indent == include_indent:
+                            targets["task_includes"].add(m.group(2))
             elif path.name in ("Makefile", "GNUmakefile", "makefile") or path.suffix == ".mk":
                 has["make"] = True
                 for line in text.splitlines():
