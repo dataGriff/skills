@@ -1,0 +1,7 @@
+# Runtime settings for the widgets service.
+port: 8000
+cache_ttl: 30
+catalogue_path: catalogue.yaml
+# Old catalogue host, used during the 0.2 migration.
+legacy_endpoint: https://old-catalogue.internal/widgets
+upstream: https://catalogue.internal/widgets
