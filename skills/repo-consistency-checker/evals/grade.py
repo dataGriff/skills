@@ -23,9 +23,18 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "widgets"
 LOCATION = re.compile(r"\b[\w.-]+\.(?:py|md|yaml|toml|Makefile)[:` ]+(?:line[s]? )?\d+|\bMakefile[:` ]+(?:line[s]? )?\d+")
-KIND = re.compile(r"\b(drift|redundan\w*|duplicate|dead code|commented[- ]out code|orphan doc|undefined command|broken reference)\b", re.I)
+KIND = re.compile(
+    r"\b(drift|redundan\w*|duplicate|dead code|commented[- ]out code|orphan doc|"
+    r"undefined command|broken reference|stale todo|stale|mismatch|contradiction|"
+    r"documented but removed|removed|history|behavior|behaviour|version|config)\b",
+    re.I,
+)
 SEVERITY = re.compile(r"\b(low|medium|moderate|high|critical|minor|major)\b", re.I)
-FIX = re.compile(r"\b(change|update|rename|replace|remove|delete|drop|use|keep|set|move|rewrite)\b", re.I)
+FIX = re.compile(
+    r"\b(change|update|rename|replace|remove|delete|drop|use|keep|set|move|rewrite|"
+    r"document|align|correct|edit|point|add)\b",
+    re.I,
+)
 
 
 def E(text, passed, evidence):
