@@ -370,22 +370,31 @@ class Scanner:
                 has["task"] = True
                 in_tasks = False
                 in_includes = False
+                tasks_section_indent = None
+                includes_section_indent = None
                 task_indent = None
                 include_indent = None
                 for line in text.splitlines():
-                    if re.match(r"^tasks:\s*$", line):
+                    current_indent = len(line) - len(line.lstrip()) if line.strip() else None
+                    mt = re.match(r"^(\s*)tasks:\s*$", line)
+                    if mt:
                         in_tasks = True
+                        tasks_section_indent = len(mt.group(1))
                         task_indent = None
                         continue
-                    if re.match(r"^includes:\s*$", line):
+                    mi = re.match(r"^(\s*)includes:\s*$", line)
+                    if mi:
                         in_includes = True
+                        includes_section_indent = len(mi.group(1))
                         include_indent = None
                         continue
-                    if in_tasks and re.match(r"^\S", line):
+                    if in_tasks and line.strip() and current_indent is not None and current_indent <= tasks_section_indent:
                         in_tasks = False
+                        tasks_section_indent = None
                         task_indent = None
-                    if in_includes and re.match(r"^\S", line):
+                    if in_includes and line.strip() and current_indent is not None and current_indent <= includes_section_indent:
                         in_includes = False
+                        includes_section_indent = None
                         include_indent = None
                     m = re.match(r"^(\s+)([A-Za-z0-9_:.\-]+):", line)
                     if in_tasks and m:

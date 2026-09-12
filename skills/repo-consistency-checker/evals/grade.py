@@ -23,7 +23,7 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "widgets"
 LOCATION = re.compile(r"\b[\w.-]+\.(?:py|md|yaml|toml|Makefile)[:` ]+(?:line[s]? )?\d+|\bMakefile[:` ]+(?:line[s]? )?\d+")
-QUOTE = re.compile(r"`[^`\n]+`|\"[^\n\"]+\"|'[^\n']+'")
+QUOTE = re.compile(r"`[^`\n]+`|\"[^\n\"]+\"|(?<!\w)'[^\n']+'(?!\w)")
 KIND = re.compile(r"\b(drift|redundan\w*|duplicate|dead code|commented[- ]out code|orphan doc|undefined command|broken reference)\b", re.I)
 SEVERITY = re.compile(r"\b(low|medium|moderate|high|critical|minor|major)\b", re.I)
 FIX = re.compile(r"\b(fix|change|update|rename|replace|remove|delete|drop|use|keep)\b", re.I)
