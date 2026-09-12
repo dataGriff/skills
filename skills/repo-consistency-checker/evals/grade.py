@@ -79,7 +79,9 @@ def grade_report(out: Path):
         if not re.match(r"\s*(\|\s*\d+\s*\||#{1,4}\s+\d+|\d+\.\s)", l):
             continue
         claim_side = l.split("|")[4] if l.count("|") >= 5 else l
-        if re.search(r"changelog\.md:\d+", claim_side, re.I) and not re.search(r"\b(not|history|historical)\b", claim_side, re.I):
+        first_cite = re.search(r"[\w.-]+\.(?:py|md|yaml|toml):\d+", claim_side, re.I)
+        if first_cite and first_cite.group(0).lower().startswith("changelog.md") \
+                and not re.search(r"\b(not|history|historical)\b", claim_side, re.I):
             flagged_history.append(l)
     ex.append(E("CHANGELOG entries are treated as history, not flagged as drift",
                 bool(report) and not flagged_history, flagged_history[:2]))
