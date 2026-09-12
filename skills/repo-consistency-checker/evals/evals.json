@@ -1,0 +1,20 @@
+{
+  "skill_name": "repo-consistency-checker",
+  "allowed_tools": ["Bash(python3 *)", "Bash(python *)", "Bash(grep *)", "Bash(ls *)", "Bash(cat *)"],
+  "evals": [
+    {
+      "id": 0,
+      "name": "audit-report",
+      "prompt": "Audit this repository for internal consistency: are the comments, docs, config and code all telling the same story, and is anything redundant (the same fact stated twice, dead code, docs for things that no longer exist, leftover TODOs, commented-out code)? The current directory is a flattened snapshot of the widgets service - every file sits at the top level. Do not modify any existing file and do not ask questions. Write your findings to CONSISTENCY_REPORT.md: for each finding give both locations (file and line) with the conflicting text quoted, what kind of problem it is, how serious it is, and the fix you would make. End with a note on what you checked and found consistent, and anything you deliberately did not flag.",
+      "expected_output": "A report that finds: README `make test` vs Makefile `test-unit`; `settings.yaml` named in README/CONTRIBUTING vs the real `config.yaml`; port 8080 in docs vs 8000 in config; fetch_widget docstring 'returns None' vs the code raising WidgetNotFound (tests pin the raise); the 'retry up to 3 times' comment and README 'three times' vs MAX_RETRIES = 5 (test pins 5); Python 3.11 in CONTRIBUTING vs 3.12 in README/pyproject; CONTRIBUTING repeating the README setup section verbatim; CONTRIBUTING 'ruff' vs Makefile flake8; dead helpers.legacy_format; the commented-out refresh_catalogue block; the stale 'TODO: add caching once WidgetCache exists'; sync_worker.py described in README and ARCHITECTURE but removed in 0.3.0; unused legacy_endpoint config key. CHANGELOG entries are history and are not flagged as drift. Findings cite file:line on both sides.",
+      "files": ["widgets/README.md", "widgets/CONTRIBUTING.md", "widgets/ARCHITECTURE.md", "widgets/CHANGELOG.md", "widgets/Makefile", "widgets/pyproject.toml", "widgets/config.yaml", "widgets/app.py", "widgets/helpers.py", "widgets/test_app.py"]
+    },
+    {
+      "id": 1,
+      "name": "audit-and-fix",
+      "prompt": "This repository has drifted: comments, docs, config and code disagree in places, and there is redundant material (facts stated twice, dead code, docs for removed things, stale TODOs, commented-out code). The current directory is a flattened snapshot of the widgets service - every file sits at the top level. Find every inconsistency and every redundant thing and fix them directly in the files so the repo has one source of truth per fact. Treat the code and its tests as the truth for behaviour: do not change behaviour the tests pin, and leave historical records alone. Do not ask questions. Finish with a short NOTES.md listing each change as before/after with the two locations that disagreed.",
+      "expected_output": "README says make test-unit (or Makefile gains test); settings.yaml references become config.yaml; docs say port 8000 or config says 8080 (consistent either way); fetch_widget docstring says it raises WidgetNotFound; retry comment and README say five / MAX_RETRIES; Python version consistent (3.12) across README, CONTRIBUTING, pyproject; CONTRIBUTING no longer duplicates the README setup section; lint tool consistent between CONTRIBUTING and Makefile; legacy_format removed; commented-out refresh_catalogue removed; stale TODO removed; sync_worker gone from README layout and ARCHITECTURE; legacy_endpoint removed from config.yaml and ARCHITECTURE; CHANGELOG.md untouched; app.py, helpers.py, test_app.py still parse and MAX_RETRIES is still 5; NOTES.md names the changed files.",
+      "files": ["widgets/README.md", "widgets/CONTRIBUTING.md", "widgets/ARCHITECTURE.md", "widgets/CHANGELOG.md", "widgets/Makefile", "widgets/pyproject.toml", "widgets/config.yaml", "widgets/app.py", "widgets/helpers.py", "widgets/test_app.py"]
+    }
+  ]
+}
