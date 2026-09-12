@@ -5,6 +5,13 @@ Usage (via the Taskfile — the canonical entrypoint):
     task eval:skills                        # every skill with an evals/evals.json
     task eval:skills NAME=x                 # one skill
     task eval:skills NAME=x MODEL=sonnet    # pin both arms to one model
+    task eval:skills SKIP=1                 # cost opt-out: report, run nothing
+
+Eval runs spend real tokens, so the runner reports how many headless
+sessions it is starting before running them, and honours an off switch for
+anyone who wants to save costs: SKIP=1 on the task (passed through as
+--skip), or SKIP_EVALS=1 in the environment to turn eval runs off
+persistently. Skipped runs exit 0 without starting any session.
 
 MODEL is passed straight to `claude -p --model`; omit it to use the CLI's
 own default. Pin it when you want a reproducible comparison on a specific
@@ -25,6 +32,7 @@ when to run them.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -231,17 +239,41 @@ def write_results_summary(
     print(f"  summary → {out.relative_to(REPO_ROOT)}")
 
 
-def main() -> int:
-    if shutil.which("claude") is None:
-        print(
-            "eval_skills: the `claude` CLI is required to run evals "
-            "(https://claude.com/claude-code). Aborting.",
-            file=sys.stderr,
+def announce_run(targets: list[Path], skip: bool) -> bool:
+    """State the cost up front; honour the opt-out. Returns True to proceed."""
+    total_evals = 0
+    for skill_dir in targets:
+        spec = json.loads(
+            (skill_dir / "evals" / "evals.json").read_text(encoding="utf-8")
         )
-        return 2
+        total_evals += len(spec["evals"])
+    sessions = total_evals * 2
+    print(
+        f"Running {total_evals} eval(s) x 2 arms = {sessions} headless "
+        f"`claude -p` session(s) for: {', '.join(t.name for t in targets)}."
+    )
+    print(
+        "Eval runs spend real tokens and can take minutes per session "
+        "(past cost/time: each skill's evals/latest-results.md). "
+        "To save costs: `task eval:skills SKIP=1` or set SKIP_EVALS=1."
+    )
+    if skip:
+        print(
+            "Skipping eval runs to save costs "
+            "(SKIP=1 / SKIP_EVALS=1) — no sessions started. Note the PR "
+            "then carries no refreshed evals/latest-results.md; CI's "
+            "eval-summary comment will flag stale evidence."
+        )
+        return False
+    return True
 
-    name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else None
-    model = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
+
+def main() -> int:
+    args = [a for a in sys.argv[1:] if a]
+    skip = "--skip" in args or os.environ.get("SKIP_EVALS", "") not in ("", "0")
+    args = [a for a in args if a != "--skip"]
+    name = args[0] if len(args) > 0 else None
+    model = args[1] if len(args) > 1 else None
     if name:
         targets = [SKILLS_DIR / name]
         if not (targets[0] / "evals" / "evals.json").is_file():
@@ -254,6 +286,17 @@ def main() -> int:
         if not targets:
             print("eval_skills: no skill defines evals/evals.json — nothing to run.")
             return 0
+
+    if not announce_run(targets, skip):
+        return 0
+
+    if shutil.which("claude") is None:
+        print(
+            "eval_skills: the `claude` CLI is required to run evals "
+            "(https://claude.com/claude-code). Aborting.",
+            file=sys.stderr,
+        )
+        return 2
 
     for skill_dir in targets:
         print(f"Evaluating {skill_dir.name}" + (f" on {model}" if model else "") + ":")

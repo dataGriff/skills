@@ -115,7 +115,12 @@ template asks for the results table in the description, and CI posts each
 changed skill's `latest-results.md` as a sticky PR comment — flagging skills
 changed without refreshed results (see [ci.md](ci.md)). Evals
 cost tokens, take minutes, and are non-deterministic, so they are
-deliberately **not** part of `task ci`. Run them when:
+deliberately **not** part of `task ci`. They run by default (the runner
+states the session count and where past cost/time is recorded before
+starting); **to save costs, turn them off** with `task eval:skills SKIP=1`
+for one invocation or `SKIP_EVALS=1` in your environment to disable them
+persistently — a skipped run starts no sessions and exits cleanly, but the
+PR then carries stale eval evidence, which CI flags. Run them when:
 
 - **creating a skill** — to prove it beats the no-skill baseline at all;
 - **meaningfully editing one** — changed workflow, rewritten guidance, new
