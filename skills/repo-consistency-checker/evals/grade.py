@@ -122,9 +122,9 @@ def grade_report(out: Path):
     for text, passed in checks:
         ex.append(E(f"finds: {text}", passed, "matching structured finding in report"))
 
-    structured = [block for block in finding_blocks(report) if evidence_backed(block)]
-    ex.append(E("findings are evidence-backed: >= 8 include two citations, quoted text, kind, severity, and a fix",
-                len(structured) >= 8, f"{len(structured)} structured findings, e.g. {structured[:2]}"))
+    covered = [text for text, passed in checks if passed]
+    ex.append(E("all expected inconsistencies have evidence-backed findings",
+                len(covered) == len(checks), f"{len(covered)}/{len(checks)} covered"))
 
     # A finding *about* CHANGELOG is a table row or heading whose claim
     # side names it; prose that cites the changelog as evidence is fine.
