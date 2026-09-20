@@ -1,19 +1,93 @@
 {
   "skill_name": "repo-optimization",
+  "downstream_repeats": 3,
   "evals": [
     {
       "id": 0,
       "name": "small-python-repo-from-readme",
       "prompt": "Make this repo agent-ready so AI coding agents (Claude Code, Codex, Copilot) work in it efficiently and cheaply. The current directory is a flattened snapshot of the orders-service repo: README.md is the only documentation, the runnable commands are spread across the Makefile, package.json scripts and deploy.sh, and .github-ci.yml is our current .github/workflows/ci.yml (flattened here; write the new one at .github/workflows/ci.yml). Set up whatever agent entrypoint files, docs layout, task runner, tool pinning, git hooks, CI wiring and guardrail checks you think an agent-optimised repo needs, keeping every command and every rule from the README available. Do not run or install anything and do not ask questions - just write the files in the current directory. Finish with a short NOTES.md stating, with numbers, what an agent had to load before starting work in this repo before your change and after it.",
-      "expected_output": "CLAUDE.md is exactly @AGENTS.md; a small AGENTS.md that tells agents to reuse the Taskfile; for a repo this small (README under 1000 tokens) no docs/index.md hop; Taskfile.yml absorbing every Makefile/package.json/deploy.sh command with desc lines and a ci task; mise.toml; hooks and a thin CI workflow that run task ci; a bootstrap for environments without task; README rules preserved; cold-start numbers reported",
-      "files": ["orders/README.md", "orders/Makefile", "orders/package.json", "orders/deploy.sh", "orders/.github-ci.yml"]
+      "expected_output": "CLAUDE.md is exactly @AGENTS.md; an AGENTS.md within 150 lines / 2000 tokens that tells agents to reuse the Taskfile and carries every README rule inline (Decimal, structlog, flags.yaml, the domain import rule); for a repo this small (README under 1000 tokens) no docs/ and no docs/README.md hop; Taskfile.yml absorbing every Makefile/package.json/deploy.sh command with desc lines and a ci task; mise.toml; hooks and a thin CI workflow that run task ci; a bootstrap for environments without task; README rules preserved; cold-start numbers reported",
+      "files": [
+        "orders/README.md",
+        "orders/Makefile",
+        "orders/package.json",
+        "orders/deploy.sh",
+        "orders/.github-ci.yml"
+      ],
+      "downstream": [
+        {
+          "id": "single-test",
+          "prompt": "Write ANSWER.md containing (1) the exact command to run only the unit test test_discount in tests/unit/test_pricing.py and (2) the command or commands that must pass before pushing. Do not run anything; write the file only."
+        },
+        {
+          "id": "new-command",
+          "prompt": "Add a way to run the integration tests with coverage (pytest tests/integration -q --cov=orders) that follows how this repo already defines its runnable commands, and write ANSWER.md saying how a contributor invokes it. Do not run anything; write files only."
+        },
+        {
+          "id": "add-rule",
+          "prompt": "Add the convention 'Refund amounts are stored in minor units as Decimal, never float' where this repo keeps its conventions, so that both contributors and AI agents will find it. Do not run anything; write files only."
+        },
+        {
+          "id": "prod-incident",
+          "prompt": "The last production deploy is broken and must be rolled back, and a teammate's alembic run says the target database is not up to date. Write ANSWER.md with exactly what to run for each, in order, and every constraint this repo puts on a production deploy. Do not run anything; write the file only."
+        }
+      ]
     },
     {
       "id": 1,
-      "name": "fat-claude-md-restructure",
-      "prompt": "Our CLAUDE.md has grown into a wall of text that Claude keeps ignoring parts of, and it only helps Claude - Codex and Copilot users get nothing. Restructure this repo (the notify service; the current directory holds its CLAUDE.md, RUNBOOK.md and package.json) so every agent gets a small, shared entrypoint and loads detail only when a task needs it, and so the pnpm scripts have a single discoverable home with git hooks and CI running the same checks. Nothing currently in CLAUDE.md or RUNBOOK.md may be lost - relocate it. Do not run or install anything and do not ask questions - just write the files in the current directory. Finish with a short NOTES.md stating, with numbers, what an agent loaded at start before your change and what it loads now.",
-      "expected_output": "CLAUDE.md becomes exactly @AGENTS.md; AGENTS.md under 60 lines / 800 tokens carrying only universal rules; docs/index.md routing to topic docs at most two hops deep; every rule, channel fact and runbook step relocated into docs; Taskfile.yml wrapping every pnpm script with desc lines and a ci task; mise.toml pinning node/pnpm/task; hooks and a thin workflow running task ci; a bootstrap for environments without task; before/after cold-start numbers reported",
-      "files": ["notify/CLAUDE.md", "notify/RUNBOOK.md", "notify/package.json"]
+      "name": "fat-claude-md-fits-budget",
+      "prompt": "Make this repo cheap and reliable for AI coding agents (Claude Code, Codex, Copilot) to work in. The current directory holds the notify service's CLAUDE.md, RUNBOOK.md and package.json; today only Claude sees CLAUDE.md and nothing points at RUNBOOK.md. Change as much or as little as the repo actually needs - nothing currently in CLAUDE.md or RUNBOOK.md may be lost. Do not run or install anything and do not ask questions - just write the files in the current directory. Finish with a short NOTES.md stating, with numbers, what an agent loaded at start before your change and what it loads now, and why you chose the amount of change you did.",
+      "expected_output": "The entry file already fits the budget (175 lines, ~1900 tokens) and is followed, so the cheaper path is routes only: CLAUDE.md becomes exactly @AGENTS.md and AGENTS.md keeps the existing content within 150 lines / 2000 tokens with the rules most tasks need inline; RUNBOOK.md gets an explicit 'before you respond to an incident, read ...' route; no docs/ fanout of content that fit; pnpm scripts stay the single command home (a Taskfile is optional and must parse and wrap them if added); nothing lost; NOTES.md reports before/after and the chosen outcome",
+      "files": [
+        "notify/CLAUDE.md",
+        "notify/RUNBOOK.md",
+        "notify/package.json"
+      ],
+      "downstream": [
+        {
+          "id": "single-test",
+          "prompt": "Write ANSWER.md containing (1) the command to run only src/channels/email.test.ts and (2) what must pass before a task is called done. Do not run anything; write the file only."
+        },
+        {
+          "id": "new-channel",
+          "prompt": "We are adding a new delivery channel called slack. Write ANSWER.md with the checklist of everything that must exist for a new channel in this repo, plus the rules about logging and retries that apply to channel code. Do not run anything; write the file only."
+        },
+        {
+          "id": "add-rule",
+          "prompt": "Add the convention 'Every SMS body must pass through src/links.ts before send; never paste a raw URL into an SMS' where this repo keeps its rules, so that contributors and AI agents will find it. Do not run anything; write files only."
+        },
+        {
+          "id": "queue-backlog",
+          "prompt": "The production queue backlog is growing. Write ANSWER.md with the exact steps this repo says to take, in order, including the commands, and what not to do. Do not run anything; write the file only."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "already-good-repo-restraint",
+      "prompt": "Make this repo cheap and reliable for AI coding agents (Claude Code, Codex, Copilot) to work in. The current directory is a snapshot of the payments-gateway repo: AGENTS.md, CLAUDE.md, README.md, Makefile, docs/releasing.md, and .github-ci.yml is our current .github/workflows/ci.yml (flattened here; if you change it, write the result to .github/workflows/ci.yml). Change as much or as little as the repo actually needs. Nothing may be lost, and CI must keep doing everything it does today. Do not run or install anything and do not ask questions - just write files in the current directory. Finish with a short NOTES.md stating, with numbers, what an agent loaded at start before your change and what it loads now, and why you chose the amount of change you did.",
+      "expected_output": "Almost nothing changes: AGENTS.md already auto-loads, fits the budget and is followed, commands already have one home (the Makefile with make help) and CI already runs make ci with a matrix, caching and a tag-gated deploy job. The right output is one explicit route in AGENTS.md to docs/releasing.md (which nothing routed to) and NOTES.md explaining the routes-only choice. No Taskfile, mise.toml, hooks or bootstrap; the Makefile keeps every target; the CI workflow is untouched or keeps its matrix, cache, services and deploy job; CLAUDE.md stays @AGENTS.md",
+      "files": [
+        "restraint/AGENTS.md",
+        "restraint/CLAUDE.md",
+        "restraint/README.md",
+        "restraint/Makefile",
+        {
+          "from": "restraint/docs-releasing.md",
+          "to": "docs/releasing.md"
+        },
+        "restraint/.github-ci.yml"
+      ],
+      "downstream": [
+        {
+          "id": "release-steps",
+          "prompt": "We need to ship version 1.5.0 today. Write ANSWER.md with the exact steps this repo says to follow, in order, including the command, and what to do if it goes wrong after deploy. Do not run anything; write the file only."
+        },
+        {
+          "id": "single-test",
+          "prompt": "Write ANSWER.md containing (1) the command to run only the tests in internal/capture and (2) what must pass before a change is called done. Do not run anything; write the file only."
+        }
+      ]
     }
   ]
 }

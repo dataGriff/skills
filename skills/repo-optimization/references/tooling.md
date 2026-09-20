@@ -1,5 +1,14 @@
 # mise + Taskfile + hooks: patterns
 
+## When this applies
+
+Only when commands are scattered across more than one home, or hooks and
+CI already run different things. A repo whose commands all live in
+`package.json` scripts or one Makefile keeps that home; AGENTS.md names
+it as the place to look first. Adding a Taskfile on top of a working
+runner is a hop for every contributor and, in the downstream
+measurements, changes nothing an agent pays.
+
 ## mise.toml
 
 Pin exact-enough versions of every tool the repo needs; `task` is always
@@ -154,3 +163,10 @@ jobs:
 
 New checks are added to the `ci` task, never to the YAML. Anything only CI
 can run is a failure contributors cannot reproduce.
+
+That skeleton is for a repo with no real workflow yet. An existing
+workflow with a matrix, caching, service containers, deploy or publish
+jobs, environments or secrets is **wrapped, never replaced**: keep every
+job and feature, replace only the inline check commands with the one
+`task ci` step, and leave the rest as it was. Deleting a workflow file or
+a job to make CI "thin" breaks the pipeline the repo depends on.

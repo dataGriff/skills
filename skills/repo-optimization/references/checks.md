@@ -1,28 +1,43 @@
 # Guardrail checks: design and skeletons
 
-Checks exist to stop the structure regressing after you leave. Two families:
+Checks exist to stop the structure regressing after you leave. Three
+families:
 
 ## 1. Context-size checks
 
 Fail the build when the always-loaded layer grows. Check:
 
-- README.md, AGENTS.md, docs/index.md against line + estimated-token
-  budgets (chars/4 is a fine, dependency-free token estimate).
+- AGENTS.md against ~2000 estimated tokens (chars/4 is a fine,
+  dependency-free estimate; ~150 lines is the matching guide);
+  README.md against ~60 lines / ~600; docs/README.md against ~100 / ~1000.
 - `CLAUDE.md` content is exactly `@AGENTS.md`.
 - Each `docs/*.md` topic file under a per-file line budget (~300).
 - For skills repos: each SKILL.md under ~500 lines / ~5000 tokens.
 
-Error messages should teach the fix: "move detail deeper into the fanout",
-not just "too long".
+Error messages should teach the fix: "move detail into a routed doc", not
+just "too long".
 
 Print a **cold-start report** on every run, pass or fail: tokens for the
-always-loaded layer (AGENTS.md via CLAUDE.md), the routing hop
-(docs/index.md), their sum against a target (~1500), and each topic doc.
-A budget only speaks when it trips; the report makes a creeping cost
-visible in every hook and CI run, and gives the before/after numbers the
-skill's verify step asks for.
+always-loaded layer (AGENTS.md via CLAUDE.md) against its target, then the
+fallback hop (docs/README.md) and each topic doc so the reader can see what
+one specialised task costs. A budget only speaks when it trips; the report
+makes a creeping cost visible in every hook and CI run, and gives the
+before/after numbers the skill's verify step asks for.
 
-## 2. Convention checks
+## 2. Routing checks
+
+The fanout only works if the routes are taken. Check:
+
+- Every line in AGENTS.md or docs/README.md that links a `.md` file is an
+  explicit route: it contains a read cue (`read|open|load|follow`) and a
+  trigger cue (`before|when|if|whenever|unless|first|any task`). A bare
+  link or "see also" fails, with a message showing the template
+  ("Before you <do X>, read <doc> — <what it holds>").
+- Every `docs/*.md` topic doc is linked from AGENTS.md or docs/README.md
+  (unrouted = invisible).
+- Relative links in AGENTS.md, README.md and docs/ resolve.
+
+## 3. Convention checks
 
 Repo-specific structure rules. For a skills repo:
 
@@ -40,9 +55,9 @@ Deterministic checks are a floor, not a certification: content freshness
 belongs in a periodic job (re-verify against the live tools), and
 effectiveness/triggering quality only show up in evals.
 
-For other repos, encode whatever the docs promise: every topic doc has a
-route row in docs/index.md, every Taskfile task has a `desc:`, etc. A
-convention that isn't checked is a suggestion.
+For other repos, encode whatever the docs promise: every Taskfile task has
+a `desc:`, generated files are not hand-edited, etc. A convention that
+isn't checked is a suggestion.
 
 ## Script design rules
 
@@ -60,11 +75,21 @@ convention that isn't checked is a suggestion.
 ```python
 #!/usr/bin/env python3
 """One-line purpose. Run via `task check:<name>`."""
+import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MAX_LINES = 60  # budget: raise only with a reason in the commit message
+AGENTS_MAX_LINES = 150  # budget: raise only with a reason in the commit message
+AGENTS_MAX_TOKENS = 2000
+MD_LINK = re.compile(r"\]\(([^)\s#]+\.md)\)")
+READ_CUE = re.compile(r"\b(read|open|load|follow)\b", re.I)
+TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b", re.I)
+
+def soft_routes(path: Path) -> list[str]:
+    """Lines that link a doc without saying when to read it."""
+    return [line for line in path.read_text().splitlines()
+            if MD_LINK.search(line) and not (READ_CUE.search(line) and TRIGGER_CUE.search(line))]
 
 def main() -> int:
     errors: list[str] = []
