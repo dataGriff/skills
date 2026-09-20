@@ -18,6 +18,6 @@ task --list    # see every available command
 
 No mise (sandbox, fresh container)? `scripts/bootstrap.sh` installs `task`.
 
-Everything runnable lives in the [Taskfile](Taskfile.yml). Docs are
-deliberately thin at the top and fan out from [docs/index.md](docs/index.md) —
-read only what the task at hand needs.
+Everything runnable lives in the [Taskfile](Taskfile.yml). For agents,
+[AGENTS.md](AGENTS.md) carries what most tasks need and routes the rest to
+[docs/](docs/index.md) — read only what the task at hand needs.

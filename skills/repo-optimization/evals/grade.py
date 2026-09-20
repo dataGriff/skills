@@ -6,11 +6,13 @@ out by scripts/eval_skills.py (run via `task eval:skills NAME=repo-optimization`
 Every check is static: it inspects the files the arm wrote, never runs
 them. Two families of check:
 
-- structure: the fanout shape (CLAUDE.md == @AGENTS.md, budgets, routing,
-  hop depth, fanout only when it pays), the Taskfile as the single home for
-  commands, thin CI, hooks, a sandbox bootstrap;
+- structure: the entry shape (CLAUDE.md == @AGENTS.md, an AGENTS.md that
+  carries the universal rules within budget, explicit conditional routes,
+  hop depth, an index only when it pays), the Taskfile as the single home
+  for commands, thin CI, hooks, a sandbox bootstrap;
 - preservation: distinctive facts from the fixture docs survive somewhere
-  the new layout routes to, and the cold-start cost went down.
+  the new layout routes to, the rules most tasks need sit in AGENTS.md
+  itself, and the always-loaded cost went down.
 
 Writes grading.json per arm and prints a pass/total summary.
 """
@@ -21,13 +23,19 @@ from pathlib import Path
 
 import yaml
 
-AGENTS_MAX_LINES = 60
-AGENTS_MAX_TOKENS = 800
-COLD_START_MAX_TOKENS = 1500
-# Below this much agent-relevant documentation a routing hop costs more
-# than it saves (the skill's own threshold).
+# AGENTS.md is the working layer: it carries what most tasks need, up to
+# the point where rule count starts to hurt instruction-following (the
+# skill's ~150 lines / ~2000 tokens).
+AGENTS_MAX_LINES = 150
+AGENTS_MAX_TOKENS = 2000
+# Below this much agent-relevant documentation everything fits in
+# AGENTS.md and a routing hop costs more than it saves.
 FANOUT_THRESHOLD_TOKENS = 2000
 MD_LINK = re.compile(r"\]\(([^)\s#]+)\)")
+DOC_LINK = re.compile(r"\]\(([^)\s#]+\.md)\)")
+# A route is followed only when it names its trigger and says "read".
+READ_CUE = re.compile(r"\b(read|open|load|follow)\b", re.I)
+TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b", re.I)
 
 
 def E(text, passed, evidence):
@@ -58,6 +66,15 @@ def all_docs_text(out: Path) -> str:
     return "\n".join(parts)
 
 
+def soft_routes(md_path: Path) -> list[str]:
+    """Lines linking a .md doc without a trigger + read cue on the same line."""
+    soft = []
+    for line in read(md_path).splitlines():
+        if DOC_LINK.search(line) and not (READ_CUE.search(line) and TRIGGER_CUE.search(line)):
+            soft.append(line.strip()[:80])
+    return soft
+
+
 def links_resolve(out: Path, md_path: Path):
     """(all_ok, broken) for relative markdown links in one file."""
     broken = []
@@ -80,8 +97,8 @@ def taskfile_info(out: Path):
 
 
 def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
-                  commands: list[str], facts: list[str], ci_forbidden: list[str],
-                  tool_pins: list[str]):
+                  commands: list[str], facts: list[str], universal: list[str],
+                  ci_forbidden: list[str], tool_pins: list[str]):
     ex = []
     claude = read(out / "CLAUDE.md").strip()
     ex.append(E("CLAUDE.md is exactly '@AGENTS.md' (one shared agent entrypoint)",
@@ -96,6 +113,20 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
     ex.append(E("AGENTS.md tells agents to discover commands with `task --list` "
                 "and reuse existing tasks",
                 "task --list" in agents, "grep 'task --list' in AGENTS.md"))
+    # The rules most tasks need sit in AGENTS.md itself, not behind a hop.
+    carried = [u for u in universal if u.lower() in agents.lower()]
+    ex.append(E(f"AGENTS.md itself carries the rules most tasks need "
+                f"(>= {len(universal) - 1}/{len(universal)} universal rules inline)",
+                len(carried) >= len(universal) - 1,
+                f"missing={[u for u in universal if u not in carried]}"))
+    # Every route is an instruction: trigger + "read", never "see also".
+    soft = soft_routes(out / "AGENTS.md")
+    index = out / "docs" / "index.md"
+    if index.is_file():
+        soft += soft_routes(index)
+    ex.append(E("Every route in AGENTS.md and docs/index.md is explicit: the line "
+                "names its trigger and says read (no bare links or 'see also')",
+                agents and not soft, f"soft={soft[:4]}"))
 
     # Routing: every relative link from the entry files and docs resolves.
     md_files = [p for p in (out / "AGENTS.md", out / "README.md") if p.is_file()]
@@ -109,7 +140,6 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
                 "(no routes to nowhere)", md_files and not broken_all,
                 f"broken={broken_all[:5]}"))
 
-    index = out / "docs" / "index.md"
     if expect_index is False:
         ex.append(E(f"No docs/index.md hop for a repo whose docs are under "
                     f"~{FANOUT_THRESHOLD_TOKENS} tokens (a single AGENTS.md is "
@@ -132,11 +162,12 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
                     len(routed) >= 2 and not shallow,
                     f"routed={len(routed)} routing-only={shallow}"))
 
-    # Cold start: what an agent loads before working, after the change.
-    cold = tokens(agents) + (tokens(read(index)) if index.is_file() else 0)
-    ex.append(E(f"Cold start (AGENTS.md + docs/index.md) <= {COLD_START_MAX_TOKENS} "
-                "est. tokens and below the original always-loaded docs",
-                agents and cold <= COLD_START_MAX_TOKENS and cold < original_tokens,
+    # Always-loaded layer after the change: AGENTS.md alone (the index is
+    # read only when AGENTS.md does not cover the task).
+    cold = tokens(agents)
+    ex.append(E(f"Always-loaded layer (AGENTS.md) <= {AGENTS_MAX_TOKENS} est. tokens "
+                "and below the original always-loaded docs",
+                agents and cold <= AGENTS_MAX_TOKENS and cold < original_tokens,
                 f"before={original_tokens} after={cold}"))
 
     tf, data, tasks, tf_text = taskfile_info(out)
@@ -206,6 +237,7 @@ def grade_orders(out: Path):
                   ("alembic upgrade head",), ("deploy.sh",)],
         facts=["orders_status", "Decimal", "flags.yaml", "structlog",
                "DEPLOY_TOKEN", "never import"],
+        universal=["Decimal", "structlog", "flags.yaml", "never import"],
         ci_forbidden=["ruff check", "mypy orders", "pytest", "npm run lint",
                       "setup-python", "setup-node"],
         tool_pins=["task", "python", "node"],
@@ -226,6 +258,8 @@ def grade_notify(out: Path):
                "prisma migrate reset", "src/generated", "build:templates",
                "test/factories", "queue:pause", "X-Notify-Signature",
                "notify_send_total"],
+        universal=["never log message bodies", "src/generated",
+                   "prisma migrate reset", "test/factories"],
         ci_forbidden=["pnpm lint", "pnpm test", "pnpm typecheck", "tsc --noEmit",
                       "setup-node", "pnpm/action-setup"],
         tool_pins=["task", "node", "pnpm"],

@@ -20,13 +20,15 @@ local and remote can never disagree about what gets checked.
   every use — unconditional cue phrasing, or a read inside a numbered
   workflow step with no stated condition. See the cost-discipline rules in
   [skills.md](skills.md).
-- `task check:context` (`scripts/check_context.py`) — context-size budgets:
-  README/AGENTS/docs/index line+token limits, `CLAUDE.md == @AGENTS.md`,
-  topic doc size, SKILL.md token budget. It also prints the cold-start
-  report: what an agent pays before any work (AGENTS.md via CLAUDE.md),
-  the routing hop (docs/index.md), and each topic doc, so a change that
-  makes orientation dearer is visible in the run, not just when a budget
-  finally trips.
+- `task check:context` (`scripts/check_context.py`) — context-size budgets
+  and routing: README/AGENTS/docs/index line+token limits, `CLAUDE.md ==
+  @AGENTS.md`, topic doc size, SKILL.md and suite-wide description
+  budgets; every doc link in AGENTS.md or docs/index.md is an explicit
+  route (names its trigger and says "read"), every topic doc has a route,
+  and relative links resolve. It also prints the cold-start report: what
+  an agent pays on every task (AGENTS.md via CLAUDE.md), the fallback hop
+  (docs/index.md), and each topic doc, so a change that makes orientation
+  dearer is visible in the run, not just when a budget finally trips.
 
 Both scripts are stdlib-only python; budgets are constants at the top of
 each script. Change a budget deliberately, in the script, with a reason in

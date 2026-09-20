@@ -1,38 +1,16 @@
 # Docs index
 
-Single routing point for this repo's documentation. README.md and AGENTS.md
-point here; this page points onward. Read only the doc your current task
-needs — that is the whole point of the fanout style.
-
-## What this repo is
-
-A workspace for building AI agent skills (`skills/<name>/SKILL.md`), with
-tooling pinned by [mise](https://mise.jdx.dev), all scripts centralised in a
-[Taskfile](https://taskfile.dev), git hooks and CI that share one `task ci`
-entrypoint, and automated checks for skill quality and context size.
+The fallback routing table. `AGENTS.md` carries what most tasks need and
+routes the common cases directly; come here when your task is not covered
+there. Read only the doc whose trigger matches — each row says when.
 
 ## Routes
 
-| Doc                            | Read it when you are…                                      |
-| ------------------------------ | ---------------------------------------------------------- |
-| [setup.md](setup.md)           | setting up the repo locally (mise, task, hooks)            |
-| [skills.md](skills.md)         | creating or editing a skill; skill best practices          |
-| [install.md](install.md)       | using these skills from Claude Code, Codex, or Copilot     |
-| [tasks.md](tasks.md)           | adding or changing Taskfile tasks; wondering what exists   |
-| [docs-style.md](docs-style.md) | writing docs; deciding where content should live           |
-| [ci.md](ci.md)                 | working on CI, git hooks, or the check scripts             |
-
-## Layout
-
-```
-AGENTS.md        agent entrypoint (CLAUDE.md is @AGENTS.md)
-Taskfile.yml     every runnable script — `task --list`
-mise.toml        pinned tool versions
-skills/          one directory per skill
-.claude/ .codex/ symlinks into skills/ (install.md); .claude/ also holds the
-                 SessionStart hook that bootstraps `task` on the web (setup.md)
-docs/            this fanout
-scripts/         python behind the check/scaffold tasks (run via task)
-.githooks/       versioned git hooks (installed by `task setup`)
-.github/         CI workflow — a thin wrapper over `task ci`
-```
+| When you are…                                              | Do this                                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| setting up the repo locally, or `task`/mise is missing     | Read [setup.md](setup.md) first — mise, task, hooks, bootstrap |
+| creating or editing a skill                                | Read [skills.md](skills.md) before you scaffold or change one  |
+| installing these skills into Claude Code, Codex, or Copilot | Read [install.md](install.md) before touching `.claude/` or `.codex/` |
+| adding or changing Taskfile tasks, or wondering what exists | Read [tasks.md](tasks.md) before editing `Taskfile.yml`        |
+| writing docs or deciding where content should live         | Read [docs-style.md](docs-style.md) first                      |
+| working on CI, git hooks, or the check scripts             | Read [ci.md](ci.md) before you change them                     |
