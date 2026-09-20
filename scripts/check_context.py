@@ -111,17 +111,24 @@ def check_routes(errors: list[str]) -> None:
         path = REPO_ROOT / rel
         if not path.is_file():
             continue  # reported by the budget loop
+        # A doc counts as routed when at least one line linking it names a
+        # trigger and says read; a passing mention beside such a line is
+        # fine, a doc with only soft mentions is unreachable in practice.
+        explicit: set[Path] = set()
+        first_mention: dict[Path, str] = {}
         for line in path.read_text(encoding="utf-8").splitlines():
-            targets = DOC_LINK.findall(line)
-            if not targets:
-                continue
-            for target in targets:
-                routed.add((path.parent / target).resolve())
-            if not (READ_CUE.search(line) and TRIGGER_CUE.search(line)):
+            for target in DOC_LINK.findall(line):
+                doc = (path.parent / target).resolve()
+                first_mention.setdefault(doc, line.strip()[:70])
+                if READ_CUE.search(line) and TRIGGER_CUE.search(line):
+                    explicit.add(doc)
+        routed |= explicit
+        for doc, line in first_mention.items():
+            if doc not in explicit:
                 errors.append(
-                    f"{rel}: soft route \"{line.strip()[:70]}\". A route agents follow "
-                    "names its trigger and says read: 'Before you <do X>, read "
-                    "<doc> - <what it holds>'."
+                    f"{rel}: soft route to {doc.name}: \"{line}\". A route agents "
+                    "follow names its trigger and says read: 'Before you <do X>, "
+                    "read <doc> - <what it holds>'."
                 )
     docs_dir = REPO_ROOT / "docs"
     if docs_dir.is_dir():

@@ -35,7 +35,10 @@ AGENTS_MAX_TOKENS = 2000
 # AGENTS.md and a routing hop costs more than it saves.
 FANOUT_THRESHOLD_TOKENS = 2000
 MD_LINK = re.compile(r"\]\(([^)\s#]+)\)")
-DOC_LINK = re.compile(r"\]\(([^)\s#]+\.md)\)")
+# A doc reference is a markdown link or a bare path (`docs/ci.md`); both
+# count as routes when they sit on a line that names a trigger and says
+# read. Lines inside code fences (layout trees) are not routes.
+DOC_LINK = re.compile(r"(?<![\w/])((?:\.{1,2}/)?[\w.-]+(?:/[\w.-]+)*\.md)\b")
 # A route is followed only when it names its trigger and says "read".
 READ_CUE = re.compile(r"\b(read|open|load|follow)\b", re.I)
 TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b", re.I)
@@ -69,13 +72,41 @@ def all_docs_text(out: Path) -> str:
     return "\n".join(parts)
 
 
-def soft_routes(md_path: Path) -> list[str]:
-    """Lines linking a .md doc without a trigger + read cue on the same line."""
-    soft = []
-    for line in read(md_path).splitlines():
-        if DOC_LINK.search(line) and not (READ_CUE.search(line) and TRIGGER_CUE.search(line)):
-            soft.append(line.strip()[:80])
-    return soft
+def prose_lines(text: str):
+    """Lines outside fenced code blocks."""
+    fenced = False
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced:
+            yield line
+
+
+def doc_refs(md_path: Path, root: Path) -> list[tuple[str, Path]]:
+    """(line, resolved doc path) for every existing .md the file refers to
+    in prose, resolved against the file's directory or the repo root."""
+    refs = []
+    for line in prose_lines(read(md_path)):
+        for target in DOC_LINK.findall(line):
+            for base in (md_path.parent, root):
+                candidate = (base / target).resolve()
+                if candidate.is_file() and candidate != md_path.resolve():
+                    refs.append((line, candidate))
+                    break
+    return refs
+
+
+def soft_routes(md_path: Path, root: Path) -> list[str]:
+    """Docs this file refers to without any line that names a trigger and
+    says read. A passing mention next to an explicit route is fine; a doc
+    whose only mentions are soft is unreachable in practice."""
+    explicit, mentioned = set(), {}
+    for line, doc in doc_refs(md_path, root):
+        mentioned.setdefault(doc, line.strip()[:80])
+        if READ_CUE.search(line) and TRIGGER_CUE.search(line):
+            explicit.add(doc)
+    return sorted(f"{doc.name}: {mentioned[doc]}" for doc in mentioned if doc not in explicit)
 
 
 def links_resolve(out: Path, md_path: Path):
@@ -123,13 +154,13 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
                 len(carried) >= len(universal) - 1,
                 f"missing={[u for u in universal if u not in carried]}"))
     # Every route is an instruction: trigger + "read", never "see also".
-    soft = soft_routes(out / "AGENTS.md")
+    soft = soft_routes(out / "AGENTS.md", out)
     # The skill recommends docs/README.md (renders in place); index.md is
     # accepted as the same thing under an older name.
     index = next((p for p in (out / "docs" / "README.md", out / "docs" / "index.md")
                   if p.is_file()), out / "docs" / "README.md")
     if index.is_file():
-        soft += soft_routes(index)
+        soft += soft_routes(index, out)
     ex.append(E("Every route in AGENTS.md and the docs index is explicit: the line "
                 "names its trigger and says read (no bare links or 'see also')",
                 agents and not soft, f"soft={soft[:4]}"))
@@ -160,9 +191,8 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
         routers = [p for p in (out / "AGENTS.md", index) if p.is_file()]
         routed = set()
         for r in routers:
-            for t in DOC_LINK.findall(read(r)):
-                p = (r.parent / t).resolve()
-                if p.is_file() and docs_root in p.parents and p != index.resolve():
+            for _, p in doc_refs(r, out):
+                if docs_root in p.parents and p != index.resolve():
                     routed.add(p)
         topic_docs = [p for p in (sorted(docs_root.rglob("*.md")) if docs_root.is_dir() else [])
                       if p.resolve() != index.resolve()]

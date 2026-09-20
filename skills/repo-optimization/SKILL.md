@@ -97,8 +97,9 @@ on nearly every task: a hop taken every time is a hop that should not
 exist.
 
 **Word every route as a conditional imperative**, in AGENTS.md and in the
-index alike. The trigger comes first, then "read", then the file, then what
-it holds:
+index alike. The trigger comes first, then "read", then the file (as a
+markdown link, so it is clickable and a check can verify it resolves),
+then what it holds:
 
 - `Before you change CI, hooks or the check scripts, read docs/ci.md — it
   defines what `task ci` must keep running.`
