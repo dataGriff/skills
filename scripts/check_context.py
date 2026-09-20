@@ -35,9 +35,11 @@ BUDGETS: list[tuple[str, int, int]] = [
 # A route is followed only when the line names its trigger and says
 # "read". "See docs/ci.md" is decoration that agents skip.
 ROUTING_FILES = ["AGENTS.md", "docs/README.md"]
+BLOCK_START = re.compile(r"^\s*(#|\||[-*+]\s|\d+[.)]\s|>)")
 DOC_LINK = re.compile(r"\]\(([^)\s#]+\.md)\)")
 READ_CUE = re.compile(r"\b(read|open|load|follow)\b", re.I)
-TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b", re.I)
+# "For <situation>, read X" is trigger-first too; "read X for details" is not.
+TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b|^\W*for\b", re.I)
 
 # Every doc reachable from the fanout should individually stay readable in one
 # sitting; past this an agent burns context on detail it may not need.
@@ -103,6 +105,30 @@ def print_cold_start_report() -> None:
         )
 
 
+def logical_lines(text: str):
+    """Paragraphs and bullets as single lines (wrapped text joined), with
+    fenced code blocks skipped, so a route that wraps still reads as one."""
+    fenced, current = False, None
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if not line.strip():
+            if current is not None:
+                yield current
+            current = None
+        elif current is None or BLOCK_START.match(line):
+            if current is not None:
+                yield current
+            current = line.strip()
+        else:
+            current += " " + line.strip()
+    if current is not None:
+        yield current
+
+
 def check_routes(errors: list[str]) -> None:
     """Every doc link in a routing file is an explicit route, every topic
     doc has one, and every relative link resolves."""
@@ -116,7 +142,7 @@ def check_routes(errors: list[str]) -> None:
         # fine, a doc with only soft mentions is unreachable in practice.
         explicit: set[Path] = set()
         first_mention: dict[Path, str] = {}
-        for line in path.read_text(encoding="utf-8").splitlines():
+        for line in logical_lines(path.read_text(encoding="utf-8")):
             for target in DOC_LINK.findall(line):
                 doc = (path.parent / target).resolve()
                 first_mention.setdefault(doc, line.strip()[:70])

@@ -44,7 +44,8 @@ MD_LINK = re.compile(r"\]\(([^)\s#]+)\)")
 DOC_LINK = re.compile(r"(?<![\w/])((?:\.{1,2}/)?[\w.-]+(?:/[\w.-]+)*\.md)\b")
 # A route is followed only when it names its trigger and says "read".
 READ_CUE = re.compile(r"\b(read|open|load|follow)\b", re.I)
-TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b", re.I)
+# "For <situation>, read X" is trigger-first too; "read X for details" is not.
+TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b|^\W*for\b", re.I)
 
 
 def E(text, passed, evidence):
@@ -75,15 +76,32 @@ def all_docs_text(out: Path) -> str:
     return "\n".join(parts)
 
 
+BLOCK_START = re.compile(r"^\s*(#|\||[-*+]\s|\d+[.)]\s|>)")
+
+
 def prose_lines(text: str):
-    """Lines outside fenced code blocks."""
-    fenced = False
+    """Logical lines outside fenced code blocks: a wrapped paragraph or
+    bullet is one line, so a trigger on the first physical line and the
+    read cue on the next still count as one route."""
+    fenced, current = False, None
     for line in text.splitlines():
         if line.strip().startswith("```"):
             fenced = not fenced
             continue
-        if not fenced:
-            yield line
+        if fenced:
+            continue
+        if not line.strip():
+            if current is not None:
+                yield current
+            current = None
+        elif current is None or BLOCK_START.match(line):
+            if current is not None:
+                yield current
+            current = line.strip()
+        else:
+            current += " " + line.strip()
+    if current is not None:
+        yield current
 
 
 def doc_refs(md_path: Path, root: Path) -> list[tuple[str, Path]]:
@@ -428,11 +446,16 @@ def ds_single_test(out: Path, selector: str, raw_checks: list[str]):
     ]
 
 
-def ds_add_rule(out: Path, phrases: list[str]):
-    hits = [str(f.relative_to(out)) for f in convention_files(out)
+def ds_add_rule(out: Path, phrases: list[str], preexisting: set[str] = frozenset()):
+    """The rule lands in a file the repo already used for conventions, not
+    in a new top-level file; `preexisting` lists the root .md files that
+    state started with."""
+    homes = [f for f in convention_files(out)] + [
+        out / n for n in preexisting if (out / n).is_file() and out / n not in convention_files(out)]
+    hits = [str(f.relative_to(out)) for f in homes
             if any(ph.lower() in read(f).lower() for ph in phrases)]
     new_root = [p.name for p in out.glob("*.md")
-                if p.name not in CONVENTION_HOMES | {"ANSWER.md", "NOTES.md"}]
+                if p.name not in CONVENTION_HOMES | {"ANSWER.md", "NOTES.md"} | set(preexisting)]
     return [E("Rule added where this repo keeps its conventions (entry file or a "
               "routed doc), not in a new top-level file",
               bool(hits) and not new_root, f"in={hits[:3]} new_root_md={new_root}")]
@@ -486,7 +509,7 @@ DOWNSTREAM = {
     ("eval-0", "single-test"): lambda out: ds_single_test(
         out, "test_pricing.py::test_discount", ["ruff check", "mypy", "npm run lint"]),
     ("eval-0", "new-command"): ds_new_command,
-    ("eval-0", "add-rule"): lambda out: ds_add_rule(out, ["minor units"]),
+    ("eval-0", "add-rule"): lambda out, pre=frozenset(): ds_add_rule(out, ["minor units"], pre),
     ("eval-0", "prod-incident"): lambda out: ds_answer_items(out, [
         ("the rollback command (deploy.sh prod --rollback or its task)", ["--rollback", "rollback"]),
         ("the DEPLOY_TOKEN requirement", ["DEPLOY_TOKEN"]),
@@ -496,13 +519,12 @@ DOWNSTREAM = {
     ("eval-1", "single-test"): lambda out: ds_single_test(
         out, "email.test.ts", ["pnpm lint", "pnpm typecheck", "pnpm test"]),
     ("eval-1", "new-channel"): ds_new_channel,
-    ("eval-1", "add-rule"): lambda out: ds_add_rule(out, ["src/links.ts", "raw url"]),
+    ("eval-1", "add-rule"): lambda out, pre=frozenset(): ds_add_rule(out, ["src/links.ts", "raw url"], pre),
     ("eval-1", "queue-backlog"): lambda out: ds_answer_items(out, [
         ("checking worker pods (kubectl get pods -l app=notify-worker)", ["notify-worker"]),
         ("the Redis memory 80% check before scaling workers", ["80"]),
         ("pausing the dominant channel with queue:pause", ["queue:pause"]),
         ("resuming with queue:resume", ["queue:resume"]),
-        ("not deleting jobs", ["not delete", "never delete", "don't delete", "do not delete"]),
     ]),
 }
 
@@ -538,7 +560,15 @@ def main():
                 task_grader = DOWNSTREAM.get((match.group(1), task_id))
                 if task_grader is None or not (run_dir / "outputs").is_dir():
                     continue
-                expectations = task_grader(run_dir / "outputs")
+                # Root files the state started with (the arm's output for the
+                # after-* states) are not "new files" when a task edits them.
+                source = {"after-baseline": eval_dir / "without_skill" / "outputs",
+                          "after-skill": eval_dir / "with_skill" / "outputs"}.get(state)
+                preexisting = frozenset(p.name for p in source.glob("*.md")) if source else frozenset()
+                if task_id == "add-rule":
+                    expectations = task_grader(run_dir / "outputs", preexisting)
+                else:
+                    expectations = task_grader(run_dir / "outputs")
                 passed = write_grading(run_dir / "grading.json", expectations)
                 totals.setdefault(state, [0, 0])
                 totals[state][0] += passed
