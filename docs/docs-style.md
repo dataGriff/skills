@@ -10,7 +10,7 @@ the common case in AGENTS.md; route the rest, explicitly.**
 README.md  ──→ orientation + quick start
 AGENTS.md  ──→ what most tasks need, within budget (CLAUDE.md = @AGENTS.md)
    ├──→ docs/<topic>.md                (direct routes for common task types)
-   └──→ docs/index.md ──→ docs/<topic>.md   (catch-all for everything else)
+   └──→ docs/README.md ──→ docs/<topic>.md   (catch-all for everything else)
 ```
 
 - `AGENTS.md` is the working layer, not a router: ground rules, commands,
@@ -18,8 +18,11 @@ AGENTS.md  ──→ what most tasks need, within budget (CLAUDE.md = @AGENTS.md
   task needs nothing else.
 - `CLAUDE.md` contains exactly `@AGENTS.md` — one agent entrypoint, no
   duplication to drift.
-- `docs/index.md` is the fallback: one row per doc saying when to read it,
-  for tasks AGENTS.md does not anticipate.
+- `docs/README.md` is the fallback: one row per doc saying when to read it,
+  for tasks AGENTS.md does not anticipate. It is a README rather than an
+  index.md so the repo UI renders it in place when you browse `docs/`; the
+  same goes for any directory that needs a map — but each README is a
+  routing hop, so add one only where a directory holds enough to need it.
 - Topic docs hold the detail, each focused on one concern.
 
 ## Why the AGENTS.md budget is what it is
@@ -40,7 +43,7 @@ it.
    Needed by one kind of task → a `docs/` topic file. Needed only inside
    one skill → that skill's `references/`. Needed by nobody → delete it.
 2. **Every doc gets an explicit route.** In AGENTS.md (common task types)
-   or `docs/index.md` (everything else), as a row whose first cell is the
+   or `docs/README.md` (everything else), as a row whose first cell is the
    trigger and whose second cell starts with "Read". "See docs/x.md" is
    decoration agents skip; `task check:context` fails on it, and on any
    topic doc with no route at all.
@@ -49,7 +52,7 @@ it.
    of task uses belongs in a topic doc. Cut what serves the fewest tasks
    first when the budget trips.
 4. **Stay in budget.** `task check:context` enforces line/token budgets on
-   README, AGENTS.md, docs/index.md, topic docs, and SKILL.md files. When a
+   README, AGENTS.md, docs/README.md, topic docs, and SKILL.md files. When a
    check fails, move content deeper — don't raise the budget.
 5. **Don't repeat detail, link it.** Repeating a one-line rule in AGENTS.md
    is fine; repeating a procedure is how routers bloat back into monoliths.

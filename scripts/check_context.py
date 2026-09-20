@@ -28,12 +28,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BUDGETS: list[tuple[str, int, int]] = [
     ("README.md", 60, 600),
     ("AGENTS.md", 150, 2000),
-    ("docs/index.md", 100, 1000),
+    ("docs/README.md", 100, 1000),
 ]
 
+# docs/README.md (not index.md) so the repo UI renders the map in place.
 # A route is followed only when the line names its trigger and says
 # "read". "See docs/ci.md" is decoration that agents skip.
-ROUTING_FILES = ["AGENTS.md", "docs/index.md"]
+ROUTING_FILES = ["AGENTS.md", "docs/README.md"]
 DOC_LINK = re.compile(r"\]\(([^)\s#]+\.md)\)")
 READ_CUE = re.compile(r"\b(read|open|load|follow)\b", re.I)
 TRIGGER_CUE = re.compile(r"\b(before|when|if|whenever|unless|first|any task)\b", re.I)
@@ -83,16 +84,16 @@ def print_cold_start_report() -> None:
         return estimate_tokens(path.read_text(encoding="utf-8")) if path.is_file() else 0
 
     always = tokens_of("AGENTS.md")
-    hop = tokens_of("docs/index.md")
+    hop = tokens_of("docs/README.md")
     print("check_context: cold-start report (est. tokens, chars/4)")
     print(f"  always loaded  AGENTS.md (via CLAUDE.md)   {always:>6}  (target <= {ALWAYS_LOADED_TARGET_TOKENS})")
-    print(f"  fallback hop   docs/index.md               {hop:>6}  (uncovered tasks only)")
-    print(f"  uncovered task AGENTS.md + docs/index.md   {always + hop:>6}")
+    print(f"  fallback hop   docs/README.md               {hop:>6}  (uncovered tasks only)")
+    print(f"  uncovered task AGENTS.md + docs/README.md   {always + hop:>6}")
     docs_dir = REPO_ROOT / "docs"
     if docs_dir.is_dir():
         for doc in sorted(docs_dir.rglob("*.md")):
             rel = doc.relative_to(REPO_ROOT)
-            if str(rel) == "docs/index.md":
+            if str(rel) == "docs/README.md":
                 continue
             print(f"  topic doc      {str(rel):<28}{tokens_of(str(rel)):>6}")
     if always > ALWAYS_LOADED_TARGET_TOKENS:
@@ -125,11 +126,11 @@ def check_routes(errors: list[str]) -> None:
     docs_dir = REPO_ROOT / "docs"
     if docs_dir.is_dir():
         for doc in sorted(docs_dir.rglob("*.md")):
-            if doc.name == "index.md" or doc.resolve() in routed:
+            if doc.name == "README.md" or doc.resolve() in routed:
                 continue
             errors.append(
                 f"{doc.relative_to(REPO_ROOT)}: no route from AGENTS.md or "
-                "docs/index.md. An unrouted doc is invisible to agents - add a "
+                "docs/README.md. An unrouted doc is invisible to agents - add a "
                 "'when you ..., read ...' row."
             )
     for md in [REPO_ROOT / "AGENTS.md", REPO_ROOT / "README.md"] + (
@@ -184,13 +185,13 @@ def main() -> int:
     if docs_dir.is_dir():
         for doc in sorted(docs_dir.rglob("*.md")):
             rel = doc.relative_to(REPO_ROOT)
-            if str(rel) == "docs/index.md":
+            if str(rel) == "docs/README.md":
                 continue  # budgeted above
             n_lines = len(doc.read_text(encoding="utf-8").splitlines())
             if n_lines > DOCS_MAX_LINES:
                 errors.append(
                     f"{rel}: {n_lines} lines (budget {DOCS_MAX_LINES}). Split it "
-                    "and route from docs/index.md."
+                    "and route from docs/README.md."
                 )
 
     # SKILL.md bodies load whole when a skill triggers — keep the token cost sane.

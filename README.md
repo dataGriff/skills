@@ -6,7 +6,7 @@ committed symlinks, everywhere else via `task install:skills`, and for
 Claude Code alone via `/plugin marketplace add dataGriff/skills`
 ([docs/install.md](docs/install.md)).
 
-**Start here → [docs/index.md](docs/index.md)**
+**Start here → [docs/README.md](docs/README.md)**
 
 Quick start:
 
@@ -20,4 +20,4 @@ No mise (sandbox, fresh container)? `scripts/bootstrap.sh` installs `task`.
 
 Everything runnable lives in the [Taskfile](Taskfile.yml). For agents,
 [AGENTS.md](AGENTS.md) carries what most tasks need and routes the rest to
-[docs/](docs/index.md) — read only what the task at hand needs.
+[docs/](docs/README.md) — read only what the task at hand needs.

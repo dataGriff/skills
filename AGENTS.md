@@ -39,7 +39,7 @@ AGENTS.md        this file (CLAUDE.md is @AGENTS.md)
 Taskfile.yml     every runnable script — `task --list`
 mise.toml        pinned tool versions
 skills/<name>/   SKILL.md + references/ scripts/ assets/ evals/
-docs/            topic docs, routed from here and from docs/index.md
+docs/            topic docs, routed from here and from docs/README.md
 scripts/         python behind the tasks (stdlib only; run via task)
 .githooks/       pre-commit → task check, pre-push → task ci
 .github/         CI workflow: mise-action + `task ci`; eval-summary PR comment
@@ -78,7 +78,7 @@ reasoning, examples and eval workflow.
   file. "See docs/x.md" is not a route. `task check:context` fails on a
   soft route or an unrouted doc.
 - **Budgets** (`task check:context`): README ≤60 lines, this file ≤150
-  lines / ~2000 tokens, `docs/index.md` ≤100, topic docs ≤300.
+  lines / ~2000 tokens, `docs/README.md` ≤100, topic docs ≤300.
 
 ## Routes — read before you act
 
@@ -88,4 +88,4 @@ reasoning, examples and eval workflow.
 | adding or changing a Taskfile task             | Read [docs/tasks.md](docs/tasks.md) before editing `Taskfile.yml`    |
 | changing CI, git hooks, or the check scripts   | Read [docs/ci.md](docs/ci.md) before you change them                 |
 | writing docs or deciding where content lives   | Read [docs/docs-style.md](docs/docs-style.md) first                  |
-| doing any task not covered above               | Read [docs/index.md](docs/index.md) before you start; do not guess a convention |
+| doing any task not covered above               | Read [docs/README.md](docs/README.md) before you start; do not guess a convention |
