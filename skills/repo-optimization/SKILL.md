@@ -4,7 +4,7 @@ description: >-
   Restructure a repository so AI agents work in it efficiently: an
   AGENTS.md (CLAUDE.md = @AGENTS.md) that carries what most tasks need
   within a hard budget, explicit "before you X, read docs/Y" routes for the
-  rest, a docs/index.md only when the routed docs outgrow AGENTS.md, a
+  rest, a docs/README.md only when the routed docs outgrow AGENTS.md, a
   Taskfile as the single home for scripts, mise-pinned tools, hooks and CI
   sharing one `task ci`, a sandbox bootstrap, and checks that enforce the
   budgets. Use when asked to make a repo agent-ready, AI-friendly, or
@@ -75,7 +75,7 @@ Then make `CLAUDE.md` contain exactly `@AGENTS.md` — a pure include, so
 there is one agent entrypoint and nothing to drift — and shrink `README.md`
 to orientation, the quick start, and a link onward. If everything
 agent-relevant fits in AGENTS.md (under ~2000 tokens in total), stop here:
-no `docs/`, no `docs/index.md`. One file the agent already has beats a
+no `docs/`, no `docs/README.md`. One file the agent already has beats a
 Read call to reach the same content.
 
 ### 3. Route the overflow — and know when a route is needed
@@ -108,15 +108,20 @@ Never "see docs/ci.md for details", "more in docs/", or a bare link list:
 agents treat soft pointers as optional and skip them, then reinvent what
 the doc already settled. A stated trigger plus "read" gets followed. Close
 the routes with a catch-all so uncovered tasks do not guess: `For any task
-not covered above, read docs/index.md before you start.`
+not covered above, read docs/README.md before you start.`
 
-**Add `docs/index.md` only when it earns its hop**: when there are more
+**Add `docs/README.md` only when it earns its hop**: when there are more
 routed docs than fit as rows in AGENTS.md (more than ~6), or when tasks
 arrive that AGENTS.md cannot anticipate. With fewer docs, route to them
 directly from AGENTS.md — one hop. Either way, **at most two hops** from
-AGENTS.md to the detail a task needs (AGENTS.md → docs/index.md → topic
+AGENTS.md to the detail a task needs (AGENTS.md → docs/README.md → topic
 doc); a doc that only routes onward again is a turn spent on nothing, so
-merge it. Index rows use the same conditional-imperative wording.
+merge it. Index rows use the same conditional-imperative wording. The
+index is a `README.md`, not an `index.md`, because repo UIs render a
+README in place when someone browses the directory. The same holds for
+any directory that holds more than one thing an agent needs a map of;
+a single-concern doc stays a flat file (`docs/ci.md`), and becomes a
+directory with its own README only when it splits past budget.
 
 Layout, per-file budgets, the content-depth test, and route wording
 examples: read [references/docs-fanout.md](references/docs-fanout.md) when
@@ -160,11 +165,11 @@ Add stdlib-only scripts (invoked via `task check`) that keep the structure
 from regressing:
 
 - **Context-size budgets**: AGENTS.md ≤ ~150 lines / ~2000 tokens;
-  docs/index.md ≤ ~100 lines / ~1000 tokens; topic docs ≤ ~300 lines;
+  docs/README.md ≤ ~100 lines / ~1000 tokens; topic docs ≤ ~300 lines;
   `CLAUDE.md == @AGENTS.md` verbatim. Have the check *print* the
   always-loaded total every run, not only fail on a budget — a cost that
   is visible gets managed.
-- **Routing checks**: every route in AGENTS.md and docs/index.md is
+- **Routing checks**: every route in AGENTS.md and docs/README.md is
   explicit (the line names a trigger and says "read"), and every topic doc
   has a route. An unrouted doc is invisible; a soft route is skipped.
 - **Convention checks**: whatever the repo's docs promise (referenced files

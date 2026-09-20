@@ -7,7 +7,7 @@ README.md  ──→ orientation + quick start, then points at AGENTS.md / docs
 AGENTS.md  ──→ the working layer: what most tasks need, within budget
    │  explicit conditional routes ("before you X, read docs/Y.md")
    ├──→ docs/<topic>.md              (few routed docs: link them directly)
-   └──→ docs/index.md ──→ docs/<topic>.md   (many routed docs: one index hop)
+   └──→ docs/README.md ──→ docs/<topic>.md   (many routed docs: one index hop)
 CLAUDE.md = "@AGENTS.md"
 ```
 
@@ -23,7 +23,7 @@ more file.
 | --------------- | ----- | ------- | ----------------------------------------------- |
 | README.md       | ≤60   | ≤600    | human orientation + quick start                 |
 | AGENTS.md       | ≤150  | ≤2000   | ground rules, commands, layout, conventions, routes |
-| docs/index.md   | ≤100  | ≤1000   | routing table for tasks AGENTS.md does not cover |
+| docs/README.md   | ≤100  | ≤1000   | routing table for tasks AGENTS.md does not cover |
 | docs/<topic>.md | ≤300  | —       | one concern, fully covered                      |
 
 Why 150 lines / 2000 tokens for AGENTS.md: the file is prompt-cached, so
@@ -55,9 +55,11 @@ AGENTS.md or docs/. No conventions, no architecture.
 **CLAUDE.md** — exactly `@AGENTS.md`. Claude Code expands the include, so
 agent guidance has a single source. Any real content here drifts.
 
-**docs/index.md** — a table with one row per doc: the trigger, then "read
+**docs/README.md** — a table with one row per doc: the trigger, then "read
 <doc>", then what it holds. Nothing else: no layout tree (that is in
-AGENTS.md), no prose that re-explains the repo.
+AGENTS.md), no prose that re-explains the repo. It is a README rather
+than an index.md so the repo UI renders the map in place when someone
+browses `docs/`.
 
 **Topic docs** — the actual detail. One concern per file (setup, CI,
 deploys, a subsystem reference, a runbook). If one grows past budget,
@@ -88,11 +90,24 @@ task.
 | ------------------------------ | ---------------------------------------------------- |
 | none (all fits in AGENTS.md)   | one AGENTS.md; no `docs/`, no index                  |
 | up to ~6                       | AGENTS.md routes to each doc directly — one hop      |
-| more than ~6, or tasks AGENTS.md cannot anticipate | AGENTS.md routes its common cases directly and the catch-all to docs/index.md — two hops maximum |
+| more than ~6, or tasks AGENTS.md cannot anticipate | AGENTS.md routes its common cases directly and the catch-all to docs/README.md — two hops maximum |
 
-Two hops is the ceiling: AGENTS.md → docs/index.md → topic doc. A page
+Two hops is the ceiling: AGENTS.md → docs/README.md → topic doc. A page
 that only routes onward again is a turn spent on nothing; merge it into
 its parent.
+
+## Directory READMEs
+
+A README is the map of a directory that holds more than one thing an
+agent needs to choose between; it renders in place when the directory is
+browsed. Apply the pattern where that is true (`docs/`, a `scripts/` with
+many scripts, a package with several modules) and route to it explicitly
+from AGENTS.md. Do not apply it to single-concern docs: `docs/ci.md` and
+`docs/ci/README.md` both take one click and both render, while a folder
+per doc hides the topic names from `ls docs/` and adds a listing hop for
+every route. When a topic doc splits past its budget, *then* it becomes
+`docs/<topic>/README.md` (the map) plus its parts, and its route moves
+with it.
 
 ## Route wording that gets followed
 
@@ -105,12 +120,12 @@ trigger and says "read":
 | --------------------------------------- | --------------------------------------------------------------------- |
 | See docs/ci.md for CI details.          | Before you change CI, hooks or the check scripts, read docs/ci.md.    |
 | More on tasks: docs/tasks.md            | When you add or change a Taskfile task, read docs/tasks.md first.     |
-| Docs live in docs/.                     | For any task not covered above, read docs/index.md before you start.  |
+| Docs live in docs/.                     | For any task not covered above, read docs/README.md before you start.  |
 | docs/deploy.md — deployment             | Read docs/deploy.md before you touch anything under `deploy/`.        |
 
 Template: **trigger → "read" → file → what it holds**. In a table, the
 trigger is the first cell and the second cell starts with "Read". A check
-script can hold this line: every line in AGENTS.md or docs/index.md that
+script can hold this line: every line in AGENTS.md or docs/README.md that
 links a doc must contain "read" (or open/load/follow) and a trigger word
 (before/when/if/whenever/unless/first/any task).
 

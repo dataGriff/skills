@@ -121,10 +121,13 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
                 f"missing={[u for u in universal if u not in carried]}"))
     # Every route is an instruction: trigger + "read", never "see also".
     soft = soft_routes(out / "AGENTS.md")
-    index = out / "docs" / "index.md"
+    # The skill recommends docs/README.md (renders in place); index.md is
+    # accepted as the same thing under an older name.
+    index = next((p for p in (out / "docs" / "README.md", out / "docs" / "index.md")
+                  if p.is_file()), out / "docs" / "README.md")
     if index.is_file():
         soft += soft_routes(index)
-    ex.append(E("Every route in AGENTS.md and docs/index.md is explicit: the line "
+    ex.append(E("Every route in AGENTS.md and the docs index is explicit: the line "
                 "names its trigger and says read (no bare links or 'see also')",
                 agents and not soft, f"soft={soft[:4]}"))
 
@@ -141,14 +144,14 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
                 f"broken={broken_all[:5]}"))
 
     if expect_index is False:
-        ex.append(E(f"No docs/index.md hop for a repo whose docs are under "
+        ex.append(E(f"No docs index hop for a repo whose docs are under "
                     f"~{FANOUT_THRESHOLD_TOKENS} tokens (a single AGENTS.md is "
                     "cheaper than two Read calls)",
                     not index.is_file(),
-                    f"docs/index.md exists={index.is_file()} original_docs_tokens={original_tokens}"))
+                    f"docs index exists={index.is_file()} original_docs_tokens={original_tokens}"))
     else:
         # Detail must fan out to topic docs that hold content, each reached
-        # from AGENTS.md directly or via docs/index.md (<= 2 hops). The
+        # from AGENTS.md directly or via the docs index (<= 2 hops). The
         # index itself is optional: with few docs, direct routes are cheaper.
         docs_root = (out / "docs").resolve()
         routers = [p for p in (out / "AGENTS.md", index) if p.is_file()]
@@ -168,7 +171,7 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
             if lines and len(link_lines) / len(lines) > 0.5:
                 shallow.append(p.name)
         ex.append(E("Detail fans out to >= 2 topic docs under docs/, each routed from "
-                    "AGENTS.md or docs/index.md and holding content rather than "
+                    "AGENTS.md or the docs index and holding content rather than "
                     "routing onward again (<= 2 hops)",
                     len(routed) >= 2 and not unrouted and not shallow,
                     f"routed={len(routed)} unrouted={unrouted[:4]} routing-only={shallow}"))

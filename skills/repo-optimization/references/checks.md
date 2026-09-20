@@ -9,7 +9,7 @@ Fail the build when the always-loaded layer grows. Check:
 
 - AGENTS.md against ~150 lines / ~2000 estimated tokens (chars/4 is a
   fine, dependency-free estimate); README.md against ~60 / ~600;
-  docs/index.md against ~100 / ~1000.
+  docs/README.md against ~100 / ~1000.
 - `CLAUDE.md` content is exactly `@AGENTS.md`.
 - Each `docs/*.md` topic file under a per-file line budget (~300).
 - For skills repos: each SKILL.md under ~500 lines / ~5000 tokens.
@@ -19,7 +19,7 @@ just "too long".
 
 Print a **cold-start report** on every run, pass or fail: tokens for the
 always-loaded layer (AGENTS.md via CLAUDE.md) against its target, then the
-fallback hop (docs/index.md) and each topic doc so the reader can see what
+fallback hop (docs/README.md) and each topic doc so the reader can see what
 one specialised task costs. A budget only speaks when it trips; the report
 makes a creeping cost visible in every hook and CI run, and gives the
 before/after numbers the skill's verify step asks for.
@@ -28,12 +28,12 @@ before/after numbers the skill's verify step asks for.
 
 The fanout only works if the routes are taken. Check:
 
-- Every line in AGENTS.md or docs/index.md that links a `.md` file is an
+- Every line in AGENTS.md or docs/README.md that links a `.md` file is an
   explicit route: it contains a read cue (`read|open|load|follow`) and a
   trigger cue (`before|when|if|whenever|unless|first|any task`). A bare
   link or "see also" fails, with a message showing the template
   ("Before you <do X>, read <doc> — <what it holds>").
-- Every `docs/*.md` topic doc is linked from AGENTS.md or docs/index.md
+- Every `docs/*.md` topic doc is linked from AGENTS.md or docs/README.md
   (unrouted = invisible).
 - Relative links in AGENTS.md, README.md and docs/ resolve.
 
