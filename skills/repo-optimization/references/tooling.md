@@ -1,5 +1,14 @@
 # mise + Taskfile + hooks: patterns
 
+## When this applies
+
+Only when commands are scattered across more than one home, or hooks and
+CI already run different things. A repo whose commands all live in
+`package.json` scripts or one Makefile keeps that home; AGENTS.md names
+it as the place to look first. Adding a Taskfile on top of a working
+runner is a hop for every contributor and, in the downstream
+measurements, changes nothing an agent pays.
+
 ## mise.toml
 
 Pin exact-enough versions of every tool the repo needs; `task` is always

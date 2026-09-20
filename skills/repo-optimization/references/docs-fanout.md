@@ -34,7 +34,8 @@ instruction-following degrades as competing rules accumulate, and ~150
 lines holds roughly 40–60 rules, about where models begin to drop some.
 Past that, adding a rule makes the existing ones less reliable. The number
 is a starting point; a repo whose agents visibly ignore rules should lower
-it, never raise it.
+it, never raise it. The token figure is the test; the line figure is a
+guide — a 175-line, 1900-token file that agents follow is within budget.
 
 ## What goes in each file
 
@@ -86,9 +87,10 @@ task.
 
 ## When the index is needed
 
-| Routed docs                    | Shape                                                |
+| Situation                      | Shape                                                |
 | ------------------------------ | ---------------------------------------------------- |
-| none (all fits in AGENTS.md)   | one AGENTS.md; no `docs/`, no index                  |
+| an entry file already auto-loads, fits ~2000 tokens and is followed | leave it; add explicit routes to its unrouted docs (and the `@AGENTS.md` include if other agents need it) |
+| none routed (all fits in AGENTS.md) | one AGENTS.md; no `docs/`, no index             |
 | up to ~6                       | AGENTS.md routes to each doc directly — one hop      |
 | more than ~6, or tasks AGENTS.md cannot anticipate | AGENTS.md routes its common cases directly and the catch-all to docs/README.md — two hops maximum |
 

@@ -1,26 +1,35 @@
 ---
 name: repo-optimization
 description: >-
-  Restructure a repository so AI agents work in it efficiently: an
-  AGENTS.md (CLAUDE.md = @AGENTS.md) that carries what most tasks need
-  within a hard budget, explicit "before you X, read docs/Y" routes for the
-  rest, a docs/README.md only when the routed docs outgrow AGENTS.md, a
-  Taskfile as the single home for scripts, mise-pinned tools, hooks and CI
-  sharing one `task ci`, a sandbox bootstrap, and checks that enforce the
-  budgets. Use when asked to make a repo agent-ready, AI-friendly, or
-  optimised for Claude/AI agents, to set up or slim AGENTS.md or CLAUDE.md,
-  to decide what belongs in AGENTS.md versus docs/, or to centralise
-  scripts in a Taskfile.
+  Make a repository cheap and reliable for AI agents to work in, changing
+  only as much as the repo needs: decide first whether the existing entry
+  file already fits its budget (then add explicit "before you X, read Y"
+  routes and stop), build an AGENTS.md (CLAUDE.md = @AGENTS.md) carrying
+  what most tasks need when nothing auto-loads, fan out to docs/ only when
+  the entry file is over budget, centralise commands in a Taskfile only
+  when they are scattered, and add mise pins, hooks, CI and budget checks
+  where they earn their keep. Use when asked to make a repo agent-ready,
+  AI-friendly, or optimised for Claude/AI agents, to set up or slim
+  AGENTS.md or CLAUDE.md, to decide what belongs in AGENTS.md versus
+  docs/, or to centralise scripts in a Taskfile.
 ---
 
 # Repo optimization for AI agents
 
-Transform a repository so agents (and humans) find what they need with
+Make a repository one where agents (and humans) find what they need with
 minimal context, reuse existing tooling instead of reinventing it, and get
-identical feedback locally and in CI.
+identical feedback locally and in CI — **changing only as much as the repo
+needs**. The measured risk of this skill is over-treatment: restructuring
+a repo whose entry file already fits its budget made every later task
+dearer (more reads, more turns, more tokens) while the one real gain, a
+runbook's rules being followed, came from a single routed line. Decide
+the amount of change before touching anything.
 
-Three principles drive every step:
+Four principles drive every step:
 
+0. **Least change that fixes the measured problem.** An entry file that
+   auto-loads, fits its budget and is followed stays as it is; it gets
+   routes to the docs it does not mention, and nothing else.
 1. **Carry the common case; route the rest.** AGENTS.md is the working
    layer, not a router. It holds everything most tasks need, within a hard
    budget, so a typical task starts with zero extra reads. Content that
@@ -57,7 +66,35 @@ needs before it can start. You will compare against both at the end. Fold
 existing content into the new structure — never discard working scripts or
 docs; relocate them.
 
-### 2. Fill AGENTS.md first
+### 2. Decide how much to change
+
+Pick one outcome from the audit, and say which in your summary:
+
+- **Routes only.** An entry file already auto-loads (CLAUDE.md or
+  AGENTS.md), fits the budget (~2000 tokens; the ~150-line figure is a
+  guide, not the test), and its rules are followed in practice. Do not
+  move content and do not fan out. Deliver: an explicit route line for
+  every doc the entry file does not route to (RUNBOOK.md, docs/*,
+  CONTRIBUTING.md — "Before you respond to an incident, read RUNBOOK.md");
+  `CLAUDE.md` as exactly `@AGENTS.md` only if other agents (Codex,
+  Copilot) need the same entry, which is a rename plus a one-line
+  include, not a rewrite; and nothing from steps 3–6 unless its own
+  trigger below holds. This is the right answer more often than it
+  feels: the file you are tempted to reorganise is prompt-cached and
+  answers most tasks with zero reads.
+- **Build.** Nothing auto-loads (a README is the only doc, or the entry
+  file is a stub). Write AGENTS.md per step 3 from what exists; fan out
+  only what does not fit.
+- **Fan out.** The entry file is over budget, or is demonstrably being
+  ignored (rules in it that agents keep breaking). Keep what most tasks
+  need in AGENTS.md per step 3, route the rest per step 4, and cut what
+  serves the fewest tasks first.
+
+Symptoms that do *not* justify a restructure: the file looks long, it
+only helps one agent (fix with the include), or commands live in one
+place that is not a Taskfile (fine; see step 5).
+
+### 3. Fill AGENTS.md first (build and fan-out outcomes)
 
 Write AGENTS.md so that most tasks need nothing else. Add sections in this
 priority order and stop when the budget is reached:
@@ -69,7 +106,7 @@ priority order and stop when the budget is reached:
 3. **Where things live**: an annotated layout tree.
 4. **Conventions most changes touch**: naming, testing, commits, branches.
 5. **Gotchas**: what agents get wrong in this repo, and what never to do.
-6. **Routes** to the docs that hold the rest (step 3 says how to word them).
+6. **Routes** to the docs that hold the rest (step 4 says how to word them).
 
 Then make `CLAUDE.md` contain exactly `@AGENTS.md` — a pure include, so
 there is one agent entrypoint and nothing to drift — and shrink `README.md`
@@ -78,7 +115,7 @@ agent-relevant fits in AGENTS.md (under ~2000 tokens in total), stop here:
 no `docs/`, no `docs/README.md`. One file the agent already has beats a
 Read call to reach the same content.
 
-### 3. Route the overflow — and know when a route is needed
+### 4. Route the overflow — and know when a route is needed
 
 Content leaves AGENTS.md for a `docs/<topic>.md` when **any** of these
 hold; otherwise it stays:
@@ -128,7 +165,18 @@ Layout, per-file budgets, the content-depth test, and route wording
 examples: read [references/docs-fanout.md](references/docs-fanout.md) when
 the repo has more agent-relevant content than one AGENTS.md can hold.
 
-### 4. Pin tooling with mise, centralise scripts in a Taskfile
+### 5. Centralise commands — when they are scattered
+
+Apply this step when runnable commands live in more than one home
+(Makefile plus package scripts plus README snippets plus loose scripts),
+or when hooks and CI already run different things. When a single home
+exists and works (`package.json` scripts, a Makefile with `make help`),
+keep it: name it in AGENTS.md as the place to look first, and skip the
+Taskfile. A second runner on top of a working one is a hop, not a win.
+Nothing in the downstream measurements shows the runner choice changing
+what an agent pays; it changes whether contributors and CI can disagree.
+
+When the step applies:
 
 - `mise.toml` pins every tool version (at minimum `task`, plus the
   languages the repo uses). It is the only place versions live.
@@ -150,7 +198,10 @@ Task design patterns, the bootstrap script, and hook wiring: read
 [references/tooling.md](references/tooling.md) if you need more than the
 patterns above.
 
-### 5. Wire hooks and CI through the Taskfile
+### 6. Wire hooks and CI through the Taskfile
+
+Apply when step 5 applied, or when CI already carries check logic that
+contributors cannot run locally.
 
 - Versioned hooks in `.githooks/` (activated via
   `git config core.hooksPath .githooks` inside a `task setup`):
@@ -160,10 +211,12 @@ patterns above.
   logic in YAML — if CI-only steps exist, contributors can't reproduce
   failures locally.
 
-### 6. Add automated guardrail checks
+### 7. Add automated guardrail checks
 
-Add stdlib-only scripts (invoked via `task check`) that keep the structure
-from regressing:
+Apply when you built or fanned out an entry file (the budgets are what
+keep it from growing back) or centralised commands. Add stdlib-only
+scripts (invoked via the repo's runner) that keep the structure from
+regressing:
 
 - **Context-size budgets**: AGENTS.md ≤ ~150 lines / ~2000 tokens;
   docs/README.md ≤ ~100 lines / ~1000 tokens; topic docs ≤ ~300 lines;
@@ -182,24 +235,30 @@ worked around. Concrete checks, budget values, and script skeletons: read
 [references/checks.md](references/checks.md) only if the repo needs checks
 beyond the ones above.
 
-### 7. Verify and compare
+### 8. Verify and compare — including against leaving it alone
 
-Run `task ci` yourself before declaring done; where you cannot run
-`task`, at least confirm `Taskfile.yml` parses as YAML (quoted `desc:`
-lines, quoted `{{ }}` templates, block style) — a Taskfile that fails to
-load is worse than the Makefile it replaced. Then measure the agent
-experience against the step 1 baseline, starting from AGENTS.md alone:
+Run the repo's checks yourself before declaring done; where you cannot
+run `task`, at least confirm any `Taskfile.yml` parses as YAML (quoted
+`desc:` lines, quoted `{{ }}` templates, block style) — a Taskfile that
+fails to load is worse than the Makefile it replaced. Then measure the
+agent experience against the step 1 baseline, starting from the entry
+file alone:
 
-- Is AGENTS.md within budget, and does it carry the command surface, the
-  layout, and every rule that applies to most tasks?
+- Is the entry file within budget, and does it carry the command surface,
+  the layout, and every rule that applies to most tasks?
 - Does a typical task need **zero** extra reads, and a specialised one at
   most one (direct route) or two (via the index)?
 - Is every route a conditional imperative with its trigger stated?
+- Would a typical task have been cheaper in the original? If the original
+  entry file auto-loaded and the after-state needs more reads or turns,
+  the restructure was the wrong outcome: revert to the routes-only
+  result and keep only the routes and the include.
 
-Report before and after in your summary: always-loaded tokens, and reads a
-typical task needs before starting. If AGENTS.md is over budget, cut the
-content serving the fewest tasks; if a common task still needs a hop, pull
-that content in; if a route is soft, reword it.
+Report before and after in your summary: always-loaded tokens, reads a
+typical task needs before starting, and which outcome from step 2 you
+chose and why. If AGENTS.md is over budget, cut the content serving the
+fewest tasks; if a common task still needs a hop, pull that content in;
+if a route is soft, reword it.
 
 ## References
 

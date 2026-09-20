@@ -7,9 +7,9 @@ families:
 
 Fail the build when the always-loaded layer grows. Check:
 
-- AGENTS.md against ~150 lines / ~2000 estimated tokens (chars/4 is a
-  fine, dependency-free estimate); README.md against ~60 / ~600;
-  docs/README.md against ~100 / ~1000.
+- AGENTS.md against ~2000 estimated tokens (chars/4 is a fine,
+  dependency-free estimate; ~150 lines is the matching guide);
+  README.md against ~60 lines / ~600; docs/README.md against ~100 / ~1000.
 - `CLAUDE.md` content is exactly `@AGENTS.md`.
 - Each `docs/*.md` topic file under a per-file line budget (~300).
 - For skills repos: each SKILL.md under ~500 lines / ~5000 tokens.

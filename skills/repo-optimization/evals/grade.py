@@ -6,10 +6,13 @@ out by scripts/eval_skills.py (run via `task eval:skills NAME=repo-optimization`
 Every check is static: it inspects the files the arm wrote, never runs
 them. Two families of check:
 
-- structure: the entry shape (CLAUDE.md == @AGENTS.md, an AGENTS.md that
-  carries the universal rules within budget, explicit conditional routes,
-  hop depth, an index only when it pays), the Taskfile as the single home
-  for commands, thin CI, hooks, a sandbox bootstrap;
+- structure: for the README-only fixture, the build outcome (CLAUDE.md ==
+  @AGENTS.md, an AGENTS.md that carries the universal rules within budget,
+  explicit conditional routes, no index for a repo this small), the
+  Taskfile as the single home for scattered commands, thin CI, hooks, a
+  sandbox bootstrap; for the fat-CLAUDE.md fixture, whether the arm chose
+  the cheaper routes-only outcome (kept the content that fit, routed the
+  runbook explicitly, kept pnpm scripts as the command home);
 - preservation: distinctive facts from the fixture docs survive somewhere
   the new layout routes to, the rules most tasks need sit in AGENTS.md
   itself, and the always-loaded cost went down;
@@ -294,9 +297,94 @@ def grade_orders(out: Path):
     )
 
 
+def routes_only_checks(out: Path, original_tokens: int, inline_facts: list[str],
+                       routed_doc_marker: str, routed_doc_trigger: str,
+                       facts: list[str], commands: list[str], command_home_cues: list[str]):
+    """The fixture's entry file fits the budget and is followed, so the
+    cheaper path is to keep it and add routes. Grades whether the arm
+    chose that path rather than a restructure."""
+    ex = []
+    claude = read(out / "CLAUDE.md").strip()
+    agents = read(out / "AGENTS.md")
+    ex.append(E("CLAUDE.md is exactly '@AGENTS.md' so Codex/Copilot share the entry "
+                "(a rename plus include, not a rewrite)",
+                claude == "@AGENTS.md", f"CLAUDE.md={claude[:60]!r}"))
+    n_lines, n_tok = len(agents.splitlines()), tokens(agents)
+    ex.append(E(f"AGENTS.md exists within budget (<= {AGENTS_MAX_TOKENS} est. tokens)",
+                agents and n_tok <= AGENTS_MAX_TOKENS, f"lines={n_lines} tokens={n_tok}"))
+    # Chose the cheaper path: the content that fit stayed in the entry file.
+    kept = [f for f in inline_facts if f.lower() in agents.lower()]
+    ex.append(E(f"Content that fit stayed in AGENTS.md rather than being fanned out "
+                f"(>= {len(inline_facts) - 2}/{len(inline_facts)} entry-file facts inline)",
+                len(kept) >= len(inline_facts) - 2,
+                f"missing={[f for f in inline_facts if f not in kept]}"))
+    docs_root = out / "docs"
+    topic_docs = [p.name for p in sorted(docs_root.rglob("*.md"))
+                  if p.name not in ("README.md", "index.md")] if docs_root.is_dir() else []
+    ex.append(E("No fanout of content that fit: at most one topic doc under docs/ "
+                "(the runbook may move there)",
+                len(topic_docs) <= 1, f"topic_docs={topic_docs}"))
+    # The unrouted doc is now routed, explicitly.
+    runbook = next((p for p in out.rglob("*.md")
+                    if routed_doc_marker in read(p) and p.name not in
+                    ("AGENTS.md", "CLAUDE.md", "NOTES.md")), None)
+    route_lines = []
+    if runbook is not None:
+        for line, doc in doc_refs(out / "AGENTS.md", out):
+            if doc == runbook.resolve() and READ_CUE.search(line) and TRIGGER_CUE.search(line):
+                route_lines.append(line.strip()[:80])
+    ex.append(E(f"The runbook survives as its own doc and AGENTS.md routes to it "
+                f"explicitly (a line naming {routed_doc_trigger} and saying read)",
+                runbook is not None and bool(route_lines),
+                f"runbook={runbook.relative_to(out) if runbook else None} routes={route_lines[:2]}"))
+    soft = soft_routes(out / "AGENTS.md", out)
+    ex.append(E("Every route in AGENTS.md is explicit (no bare links or 'see also')",
+                agents and not soft, f"soft={soft[:4]}"))
+    md_files = [p for p in (out / "AGENTS.md", out / "README.md") if p.is_file()]
+    if docs_root.is_dir():
+        md_files += sorted(docs_root.rglob("*.md"))
+    broken_all = []
+    for md in md_files:
+        ok, broken = links_resolve(out, md)
+        broken_all += [f"{md.relative_to(out)} -> {b}" for b in broken]
+    ex.append(E("Every relative link in AGENTS.md/README.md/docs resolves",
+                md_files and not broken_all, f"broken={broken_all[:5]}"))
+    # Commands: the single existing home stays, or a Taskfile that parses wraps them.
+    tf, data, tasks, tf_text = taskfile_info(out)
+    if tf.is_file():
+        valid = "__parse_error__" not in data and bool(tasks)
+        present = [c for c in commands if any(alt in tf_text for alt in c)]
+        ok = valid and len(present) >= len(commands) - 1
+        why = "a Taskfile was added, so it must parse and wrap the pnpm scripts"
+        evidence = f"valid={valid} missing={[c[0] for c in commands if c not in present]}"
+    else:
+        ok = all(c in agents for c in command_home_cues)
+        why = "no Taskfile, so AGENTS.md names the pnpm scripts as the command home"
+        evidence = f"cues_in_agents={[c for c in command_home_cues if c in agents]}"
+    ex.append(E(f"Commands keep one discoverable home ({why})", ok, evidence))
+    everything = all_docs_text(out) + read(out / "RUNBOOK.md")
+    kept_all = [f for f in facts if f.lower() in everything.lower()]
+    ex.append(E(f"Original rules and facts survive somewhere routed "
+                f"(>= {len(facts) - 1}/{len(facts)})",
+                len(kept_all) >= len(facts) - 1, f"lost={[f for f in facts if f not in kept_all]}"))
+    notes = read(out / "NOTES.md")
+    ex.append(E("NOTES.md reports before/after cold-start numbers and the chosen outcome",
+                bool(re.search(r"\d", notes)) and re.search(r"before", notes, re.I)
+                and re.search(r"after", notes, re.I), f"len={len(notes)}"))
+    return ex
+
+
 def grade_notify(out: Path):
-    return common_checks(
-        out, original_tokens=1871 + 196, expect_index=True,
+    return routes_only_checks(
+        out, original_tokens=1881 + 196,
+        inline_facts=["never log message bodies", "HMAC-SHA256", "config/limits.yaml",
+                      "prisma migrate reset", "src/generated", "build:templates",
+                      "test/factories", "X-Notify-Signature", "notify_send_total"],
+        routed_doc_marker="queue:pause", routed_doc_trigger="incidents/backlog",
+        facts=["never log message bodies", "HMAC-SHA256", "config/limits.yaml",
+               "prisma migrate reset", "src/generated", "build:templates",
+               "test/factories", "queue:pause", "X-Notify-Signature",
+               "notify_send_total"],
         commands=[("tsx watch src/server.ts", "pnpm dev"),
                   ("tsx src/queue/worker.ts", "pnpm worker"),
                   ("tsup", "pnpm build"), ("mjml", "build:templates"),
@@ -304,15 +392,7 @@ def grade_notify(out: Path):
                   ("eslint", "pnpm lint"), ("tsc --noEmit", "pnpm typecheck"),
                   ("k6", "pnpm loadtest"), ("openapi-typescript", "gen:sdk"),
                   ("test/seed/load.ts", "pnpm seed"), ("queue:pause",)],
-        facts=["never log message bodies", "HMAC-SHA256", "config/limits.yaml",
-               "prisma migrate reset", "src/generated", "build:templates",
-               "test/factories", "queue:pause", "X-Notify-Signature",
-               "notify_send_total"],
-        universal=["never log message bodies", "src/generated",
-                   "prisma migrate reset", "test/factories"],
-        ci_forbidden=["pnpm lint", "pnpm test", "pnpm typecheck", "tsc --noEmit",
-                      "setup-node", "pnpm/action-setup"],
-        tool_pins=["task", "node", "pnpm"],
+        command_home_cues=["pnpm lint", "pnpm typecheck", "pnpm test"],
     )
 
 
