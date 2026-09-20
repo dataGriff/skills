@@ -124,3 +124,18 @@ deliberately **not** part of `task ci`. Run them when:
   the skill wraps (pair with re-verifying references against the live tool);
 - **triggering feels off** — though description/trigger tuning needs its
   own eval type (should/shouldn't-trigger prompts), not these output evals.
+
+### Downstream evals (does the output pay off later?)
+
+For a skill whose output is a repo layout or a document other agents then
+work from, "did it produce the expected files" is not the question — "is
+the result cheaper and safer to work in" is. An eval entry may list
+`downstream` tasks: small follow-up jobs the runner executes in three
+states of the same fixture — the original (`before`), the baseline arm's
+output (`after-baseline`) and the skill arm's output (`after-skill`) —
+recording per run the turns, tokens, cost and the number of tool calls
+before the first file write (how much orientation the repo demanded), and
+grading adherence to the repo's own rules. `downstream_repeats` at the
+top level sets the runs per task (they are noisy; use 2–3 for a decision).
+`task eval:downstream NAME=x ITERATION=<stamp>` re-runs only that stage
+against an existing iteration. `repo-optimization` is the worked example.

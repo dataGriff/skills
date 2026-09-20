@@ -41,6 +41,8 @@ Only when nothing existing covers the need:
 - `check` → `check:skills` + `check:context`
 - `eval:skills` → with/without-skill effectiveness evals (on demand, not CI;
   `MODEL=` pins both arms to one model for a reproducible comparison)
+- `eval:downstream` → re-run only the downstream-task stage of an existing
+  eval iteration (`ITERATION=<stamp>`)
 - `pr:eval-summary` → markdown eval evidence for changed skills (CI posts it
   as a sticky PR comment)
 - `pre-commit` / `pre-push` → hook entrypoints

@@ -12,9 +12,12 @@ them. Two families of check:
   for commands, thin CI, hooks, a sandbox bootstrap;
 - preservation: distinctive facts from the fixture docs survive somewhere
   the new layout routes to, the rules most tasks need sit in AGENTS.md
-  itself, and the always-loaded cost went down.
+  itself, and the always-loaded cost went down;
+- downstream: for each follow-up task run in the before / after-baseline /
+  after-skill states of the fixture, whether the answer follows the repo's
+  own rules (the runner records turns, tokens and reads per run).
 
-Writes grading.json per arm and prints a pass/total summary.
+Writes grading.json per arm (and per downstream run) and prints summaries.
 """
 import json
 import re
@@ -286,6 +289,102 @@ def grade_notify(out: Path):
 GRADERS = {"eval-0": grade_orders, "eval-1": grade_notify}
 
 
+# --- downstream tasks: does the restructured repo make later work cheaper? ---
+
+CONVENTION_HOMES = {"AGENTS.md", "CLAUDE.md", "README.md", "RUNBOOK.md"}
+
+
+def convention_files(out: Path) -> list[Path]:
+    """Where a rule belongs in any state: the entry files, or a routed doc."""
+    files = [out / n for n in ("AGENTS.md", "CLAUDE.md", "README.md", "RUNBOOK.md")]
+    if (out / "docs").is_dir():
+        files += sorted((out / "docs").rglob("*.md"))
+    return [f for f in files if f.is_file()]
+
+
+def ds_single_test(out: Path, selector: str, raw_checks: list[str]):
+    answer = read(out / "ANSWER.md")
+    via_task = bool(re.search(r"\btask (ci|check|lint|test)\b", answer))
+    raw_found = [c for c in raw_checks if c in answer]
+    return [
+        E(f"ANSWER.md names the single-test command ({selector})",
+          selector in answer, answer[:160]),
+        E("ANSWER.md names the pre-push checks: the repo's one entrypoint "
+          "(task ci/check) or every raw check command",
+          via_task or len(raw_found) == len(raw_checks),
+          f"task={via_task} raw={raw_found}"),
+    ]
+
+
+def ds_add_rule(out: Path, phrases: list[str]):
+    hits = [str(f.relative_to(out)) for f in convention_files(out)
+            if any(ph.lower() in read(f).lower() for ph in phrases)]
+    new_root = [p.name for p in out.glob("*.md")
+                if p.name not in CONVENTION_HOMES | {"ANSWER.md", "NOTES.md"}]
+    return [E("Rule added where this repo keeps its conventions (entry file or a "
+              "routed doc), not in a new top-level file",
+              bool(hits) and not new_root, f"in={hits[:3]} new_root_md={new_root}")]
+
+
+def ds_new_command(out: Path):
+    tf, data, tasks, tf_text = taskfile_info(out)
+    homes = {"Taskfile.yml": tf_text, "Makefile": read(out / "Makefile"),
+             "package.json": read(out / "package.json")}
+    where = [k for k, v in homes.items() if "--cov=orders" in v]
+    if tf.is_file():
+        ok = "Taskfile.yml" in where and "__parse_error__" not in data
+        why = "Taskfile present, so it must be a task and the file must still parse"
+    else:
+        ok = bool(where)
+        why = "no Taskfile, so Makefile or package.json"
+    answer = read(out / "ANSWER.md")
+    return [
+        E(f"Coverage command added to the repo's runnable home ({why})", ok,
+          f"found_in={where} parse={str(data.get('__parse_error__', ''))[:60]!r}"),
+        E("ANSWER.md tells a contributor how to invoke it",
+          bool(re.search(r"\b(task|make|npm run|pnpm)\s+\S+", answer)), answer[:120]),
+    ]
+
+
+def ds_new_channel(out: Path):
+    answer = read(out / "ANSWER.md").lower()
+    items = [
+        ("a registry entry", ["registry"]),
+        ("a template directory", ["template"]),
+        ("an integration test", ["integration test"]),
+        ("an entry in docs/channels.md", ["channels.md"]),
+        ("the PII rule (never log message bodies or recipients)",
+         ["message bod", "recipient"]),
+        ("the retry rule (send is idempotent; retries live in the worker)",
+         ["idempot", "never implement retries", "retries inside", "backoff"]),
+    ]
+    return [E(f"Checklist names {label}", any(k in answer for k in keys), "")
+            for label, keys in items]
+
+
+DOWNSTREAM = {
+    ("eval-0", "single-test"): lambda out: ds_single_test(
+        out, "test_pricing.py::test_discount", ["ruff check", "mypy", "npm run lint"]),
+    ("eval-0", "new-command"): ds_new_command,
+    ("eval-0", "add-rule"): lambda out: ds_add_rule(out, ["minor units"]),
+    ("eval-1", "single-test"): lambda out: ds_single_test(
+        out, "email.test.ts", ["pnpm lint", "pnpm typecheck", "pnpm test"]),
+    ("eval-1", "new-channel"): ds_new_channel,
+    ("eval-1", "add-rule"): lambda out: ds_add_rule(out, ["src/links.ts", "raw url"]),
+}
+
+
+def write_grading(target: Path, expectations: list[dict]) -> int:
+    passed = sum(1 for e in expectations if e["passed"])
+    target.write_text(json.dumps(
+        {"expectations": expectations,
+         "summary": {"passed": passed, "failed": len(expectations) - passed,
+                     "total": len(expectations),
+                     "pass_rate": round(passed / len(expectations), 4) if expectations else 0}},
+        indent=2))
+    return passed
+
+
 def main():
     iteration = Path(sys.argv[1])
     for eval_dir in sorted(iteration.glob("eval-*")):
@@ -296,14 +395,23 @@ def main():
             if not out.is_dir():
                 continue
             expectations = grader(out)
-            passed = sum(1 for e in expectations if e["passed"])
-            (eval_dir / arm / "grading.json").write_text(json.dumps(
-                {"expectations": expectations,
-                 "summary": {"passed": passed, "failed": len(expectations) - passed,
-                             "total": len(expectations),
-                             "pass_rate": round(passed / len(expectations), 4)}},
-                indent=2))
+            passed = write_grading(eval_dir / arm / "grading.json", expectations)
             print(f"  {eval_dir.name}/{arm}: {passed}/{len(expectations)}")
+        downstream = eval_dir / "downstream"
+        if downstream.is_dir():
+            totals: dict[str, list[int]] = {}
+            for run_dir in sorted(downstream.glob("*/*/rep-*")):
+                state, task_id = run_dir.parts[-3], run_dir.parts[-2]
+                task_grader = DOWNSTREAM.get((match.group(1), task_id))
+                if task_grader is None or not (run_dir / "outputs").is_dir():
+                    continue
+                expectations = task_grader(run_dir / "outputs")
+                passed = write_grading(run_dir / "grading.json", expectations)
+                totals.setdefault(state, [0, 0])
+                totals[state][0] += passed
+                totals[state][1] += len(expectations)
+            for state, (passed, total) in totals.items():
+                print(f"  {eval_dir.name}/downstream/{state}: {passed}/{total} adherence")
 
 
 if __name__ == "__main__":

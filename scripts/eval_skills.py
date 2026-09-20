@@ -17,6 +17,14 @@ If the skill ships evals/grade.py, it is run afterwards to produce
 grading.json per arm and a pass/total summary; otherwise outputs are left
 for human comparison.
 
+Downstream stage (optional, per eval): after both arms, evals.json may list
+"downstream" tasks - small follow-up jobs run in three states of the same
+fixture (before = original docs, after-baseline = the baseline arm's output,
+after-skill = the skill arm's output) - to measure whether the repo the
+skill produces is actually cheaper to work in: turns, tokens, reads before
+the first write, and rule adherence per state.
+    task eval:downstream NAME=x ITERATION=<stamp>   # rerun only that stage
+
 Requires the `claude` CLI. Deliberately NOT part of `task ci`: eval runs
 are slow, cost tokens, and are non-deterministic — see docs/skills.md for
 when to run them.
@@ -30,6 +38,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,6 +46,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 EVAL_ROOT = REPO_ROOT / ".evals"
 RUN_TIMEOUT_SECONDS = 900
+DOWNSTREAM_WORKERS = 4
+DOWNSTREAM_STATES = ("before", "after-baseline", "after-skill")
+WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 WITH_SKILL_PROMPT = """Execute this task:
 - Skill path: {skill_dir} — FIRST read the SKILL.md at that path and follow \
@@ -52,15 +64,26 @@ standalone task; do not read files under {skills_dir}.
 """
 
 
+DOWNSTREAM_PROMPT = """Execute this task in the current working directory, a repository snapshot:
+- Task: {prompt}
+- Work only from what this repository tells you; do not read files outside \
+the current directory.
+"""
+
+
 def run_claude(
     prompt: str,
     cwd: Path,
     model: str | None = None,
     add_dir: Path | None = None,
     allowed_tools: list[str] | None = None,
+    stream: bool = False,
 ) -> dict:
-    cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits",
-           "--output-format", "json"]
+    """Run one headless session. With stream=True the per-message event
+    stream is parsed so the tool calls made before the first file write
+    (how much orientation the repo demanded) are recorded as well."""
+    cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits"]
+    cmd += ["--output-format", "stream-json", "--verbose"] if stream else ["--output-format", "json"]
     if model:
         cmd += ["--model", model]
     if add_dir:
@@ -88,7 +111,28 @@ def run_claude(
         "stderr_tail": result.stderr[-1000:],
     }
     try:  # headless JSON output carries usage/cost metadata
-        payload = json.loads(result.stdout)
+        if stream:
+            payload, tool_calls = None, []
+            for line in result.stdout.splitlines():
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") == "assistant":
+                    for block in (event.get("message") or {}).get("content") or []:
+                        if block.get("type") == "tool_use":
+                            tool_calls.append(block.get("name"))
+                elif event.get("type") == "result":
+                    payload = event
+            info["tool_calls"] = len(tool_calls)
+            info["reads_before_first_write"] = next(
+                (i for i, n in enumerate(tool_calls) if n in WRITE_TOOLS), len(tool_calls)
+            )
+            info["tool_call_names"] = tool_calls
+            if payload is None:
+                raise json.JSONDecodeError("no result event", result.stdout[-100:], 0)
+        else:
+            payload = json.loads(result.stdout)
         info["duration_seconds"] = round(payload.get("duration_ms", 0) / 1000, 1) or info["duration_seconds"]
         info["num_turns"] = payload.get("num_turns")
         info["total_cost_usd"] = payload.get("total_cost_usd")
@@ -104,6 +148,96 @@ def run_claude(
     except (json.JSONDecodeError, TypeError):
         info["stdout_tail"] = result.stdout[-2000:]
     return info
+
+
+def run_downstream(
+    ev: dict, eval_dir: Path, fixtures: Path, scratch: Path,
+    model: str | None, allowed_tools: list[str], repeats: int,
+) -> None:
+    """Run the eval's downstream tasks in each state of the fixture repo.
+
+    The question is not "did the skill restructure well" but "is the
+    restructured repo cheaper to work in": every task runs against the
+    original docs (before), the baseline arm's output (after-baseline) and
+    the skill arm's output (after-skill), and the grader scores adherence
+    to the repo's own rules in each. Runs are independent, so they go
+    through a small worker pool."""
+    tasks = ev.get("downstream") or []
+    if not tasks:
+        return
+    sources = {
+        "before": None,
+        "after-baseline": eval_dir / "without_skill" / "outputs",
+        "after-skill": eval_dir / "with_skill" / "outputs",
+    }
+    jobs = [
+        (state, sources[state], task, rep)
+        for state in DOWNSTREAM_STATES
+        for task in tasks
+        for rep in range(1, repeats + 1)
+    ]
+
+    def run_job(job):
+        state, src, task, rep = job
+        rel = Path("downstream") / state / task["id"] / f"rep-{rep}"
+        work = scratch / eval_dir.name / rel / "outputs"
+        work.mkdir(parents=True, exist_ok=True)
+        if src is None:
+            for fixture in ev.get("files", []):
+                shutil.copy(fixtures / fixture, work / Path(fixture).name)
+        else:
+            # The arm's own artefacts (.skill copy, NOTES.md) are not part
+            # of the repo a later agent would see.
+            shutil.copytree(src, work, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns(".skill", "NOTES.md"))
+        info = run_claude(DOWNSTREAM_PROMPT.format(prompt=task["prompt"]), work,
+                          model, None, allowed_tools, stream=True)
+        final = eval_dir / rel / "outputs"
+        final.parent.mkdir(parents=True, exist_ok=True)
+        if final.exists():
+            shutil.rmtree(final)
+        shutil.move(str(work), str(final))
+        (eval_dir / rel / "run.json").write_text(json.dumps(info, indent=2))
+        return f"{state}/{task['id']}/rep-{rep}", info
+
+    print(f"  {eval_dir.name}/downstream: {len(jobs)} runs "
+          f"({len(DOWNSTREAM_STATES)} states x {len(tasks)} tasks x {repeats}) ...", flush=True)
+    with ThreadPoolExecutor(max_workers=DOWNSTREAM_WORKERS) as pool:
+        for label, info in pool.map(run_job, jobs):
+            print(f"    {label}: {info['duration_seconds']}s, {info.get('num_turns')} turns, "
+                  f"{info.get('reads_before_first_write')} reads before first write "
+                  f"(exit {info['exit_code']})", flush=True)
+
+
+def grade_and_summarise(skill_dir: Path, iteration: Path, stamp: str, model: str | None) -> None:
+    grader = skill_dir / "evals" / "grade.py"
+    if grader.is_file():
+        print(f"  grading with {grader.relative_to(REPO_ROOT)}")
+        subprocess.run([sys.executable, str(grader), str(iteration)], check=False)
+    else:
+        print(f"  no grader — compare outputs manually under {iteration}")
+    write_results_summary(skill_dir, iteration, stamp, model)
+
+
+def run_downstream_only(skill_dir: Path, stamp: str, model: str | None = None) -> Path | None:
+    """Re-run just the downstream stage against an existing iteration's arm
+    outputs, then regrade and rewrite the summary."""
+    evals_file = skill_dir / "evals" / "evals.json"
+    spec = json.loads(evals_file.read_text(encoding="utf-8"))
+    iteration = EVAL_ROOT / skill_dir.name / stamp
+    if not iteration.is_dir():
+        print(f"eval_skills: {iteration.relative_to(REPO_ROOT)} not found", file=sys.stderr)
+        return None
+    fixtures = skill_dir / "evals" / "fixtures"
+    scratch = Path(tempfile.mkdtemp(prefix=f"skill-eval-{skill_dir.name}-"))
+    for ev in spec["evals"]:
+        eval_dir = iteration / f"eval-{ev['id']}-{ev['name']}"
+        shutil.rmtree(eval_dir / "downstream", ignore_errors=True)
+        run_downstream(ev, eval_dir, fixtures, scratch, model,
+                       spec.get("allowed_tools") or [], int(spec.get("downstream_repeats", 1)))
+    shutil.rmtree(scratch, ignore_errors=True)
+    grade_and_summarise(skill_dir, iteration, stamp, model)
+    return iteration
 
 
 def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
@@ -153,16 +287,47 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             shutil.move(str(outputs), str(final_outputs))
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
             print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
+        run_downstream(ev, eval_dir, fixtures, scratch, model, allowed_tools,
+                       int(spec.get("downstream_repeats", 1)))
     shutil.rmtree(scratch, ignore_errors=True)
-
-    grader = skill_dir / "evals" / "grade.py"
-    if grader.is_file():
-        print(f"  grading with {grader.relative_to(REPO_ROOT)}")
-        subprocess.run([sys.executable, str(grader), str(iteration)], check=False)
-    else:
-        print(f"  no grader — compare outputs manually under {iteration}")
-    write_results_summary(skill_dir, iteration, stamp, model)
+    grade_and_summarise(skill_dir, iteration, stamp, model)
     return iteration
+
+
+def downstream_rows(iteration: Path) -> list[tuple]:
+    """One row per eval x state: run count, adherence, and mean turns /
+    reads-before-first-write / tokens / cost across its tasks and repeats."""
+    rows = []
+    for eval_dir in sorted(iteration.glob("eval-*")):
+        ds = eval_dir / "downstream"
+        if not ds.is_dir():
+            continue
+        for state in DOWNSTREAM_STATES:
+            runs = sorted((ds / state).glob("*/rep-*")) if (ds / state).is_dir() else []
+            if not runs:
+                continue
+            agg: dict[str, list[float]] = {"turns": [], "reads": [], "tokens": [], "cost": []}
+            passed = total = 0
+            for run_dir in runs:
+                run_file, grade_file = run_dir / "run.json", run_dir / "grading.json"
+                if run_file.is_file():
+                    run = json.loads(run_file.read_text())
+                    for key, field in (("turns", "num_turns"), ("reads", "reads_before_first_write"),
+                                       ("tokens", "tokens"), ("cost", "total_cost_usd")):
+                        value = run.get(field)
+                        if isinstance(value, (int, float)):
+                            agg[key].append(value)
+                if grade_file.is_file():
+                    summary = json.loads(grade_file.read_text()).get("summary", {})
+                    passed += summary.get("passed", 0)
+                    total += summary.get("total", 0)
+
+            def mean(xs: list[float]) -> float | None:
+                return sum(xs) / len(xs) if xs else None
+
+            rows.append((eval_dir.name.split("-", 2)[-1], state, len(runs), passed, total,
+                         mean(agg["turns"]), mean(agg["reads"]), mean(agg["tokens"]), mean(agg["cost"])))
+    return rows
 
 
 def write_results_summary(
@@ -228,6 +393,28 @@ def write_results_summary(
             f"Token cost, with skill / baseline: {ratio:.2f}x. Turns above the "
             "baseline usually mean SKILL.md loads bundled files unconditionally."
         )
+    ds_rows = downstream_rows(iteration)
+    if ds_rows:
+        lines += [
+            "",
+            "Downstream tasks - the same follow-up jobs run in the fixture repo before "
+            "the restructure, after the baseline arm's restructure, and after the skill "
+            "arm's (means per run; adherence = grader checks the answers passed). This "
+            "is the cost the skill is meant to reduce: what a later agent pays to "
+            "orient and whether it follows the repo's rules.",
+            "",
+            "| Eval | State | Runs | Adherence | Turns | Reads before first write | Tokens | Cost |",
+            "|------|-------|------|-----------|-------|--------------------------|--------|------|",
+        ]
+
+        def fmt(value, spec: str) -> str:
+            return format(value, spec) if isinstance(value, (int, float)) else "?"
+
+        for name, state, n, passed, total, turns, reads, toks, cost in ds_rows:
+            lines.append(
+                f"| {name} | {state} | {n} | {passed}/{total} | {fmt(turns, '.1f')} | "
+                f"{fmt(reads, '.1f')} | {fmt(toks, ',.0f')} | ${fmt(cost, '.2f')} |"
+            )
     lines += ["", f"Full outputs (gitignored): `.evals/{skill_dir.name}/{stamp}/`.", ""]
 
     # Keep any hand-written sections (## headings) from the previous file:
@@ -251,8 +438,21 @@ def main() -> int:
         )
         return 2
 
-    name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else None
-    model = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
+    argv = sys.argv[1:]
+    downstream_stamp = None
+    if "--downstream" in argv:
+        i = argv.index("--downstream")
+        downstream_stamp = argv[i + 1] if len(argv) > i + 1 else None
+        argv = argv[:i] + argv[i + 2:]
+    name = argv[0] if len(argv) > 0 and argv[0] else None
+    model = argv[1] if len(argv) > 1 and argv[1] else None
+    if downstream_stamp is not None:
+        if not name:
+            print("eval_skills: --downstream needs NAME and ITERATION", file=sys.stderr)
+            return 1
+        print(f"Downstream evals for {name}, iteration {downstream_stamp}"
+              + (f" on {model}" if model else "") + ":")
+        return 0 if run_downstream_only(SKILLS_DIR / name, downstream_stamp, model) else 1
     if name:
         targets = [SKILLS_DIR / name]
         if not (targets[0] / "evals" / "evals.json").is_file():
