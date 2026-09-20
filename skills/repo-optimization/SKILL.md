@@ -210,6 +210,15 @@ contributors cannot run locally.
   `jdx/mise-action` (reading `mise.toml`), and runs `task ci`. No check
   logic in YAML — if CI-only steps exist, contributors can't reproduce
   failures locally.
+- **Wrap an existing workflow; never replace it.** A workflow that
+  already carries real jobs — a matrix, caching, service containers,
+  deploy or publish jobs, secrets, environments — keeps every job and
+  every feature. Swap only the inline check commands for the single
+  `task ci` (or `make ci`) step, in place, and leave the rest byte for
+  byte. Never delete a workflow file or drop a job to make it "thin":
+  a thin wrapper that lost the deploy job is a broken release pipeline,
+  and the fixture-sized workflow the pattern above describes is the
+  exception, not the rule.
 
 ### 7. Add automated guardrail checks
 

@@ -61,6 +61,33 @@
           "prompt": "The production queue backlog is growing. Write ANSWER.md with the exact steps this repo says to take, in order, including the commands, and what not to do. Do not run anything; write the file only."
         }
       ]
+    },
+    {
+      "id": 2,
+      "name": "already-good-repo-restraint",
+      "prompt": "Make this repo cheap and reliable for AI coding agents (Claude Code, Codex, Copilot) to work in. The current directory is a snapshot of the payments-gateway repo: AGENTS.md, CLAUDE.md, README.md, Makefile, docs/releasing.md, and .github-ci.yml is our current .github/workflows/ci.yml (flattened here; if you change it, write the result to .github/workflows/ci.yml). Change as much or as little as the repo actually needs. Nothing may be lost, and CI must keep doing everything it does today. Do not run or install anything and do not ask questions - just write files in the current directory. Finish with a short NOTES.md stating, with numbers, what an agent loaded at start before your change and what it loads now, and why you chose the amount of change you did.",
+      "expected_output": "Almost nothing changes: AGENTS.md already auto-loads, fits the budget and is followed, commands already have one home (the Makefile with make help) and CI already runs make ci with a matrix, caching and a tag-gated deploy job. The right output is one explicit route in AGENTS.md to docs/releasing.md (which nothing routed to) and NOTES.md explaining the routes-only choice. No Taskfile, mise.toml, hooks or bootstrap; the Makefile keeps every target; the CI workflow is untouched or keeps its matrix, cache, services and deploy job; CLAUDE.md stays @AGENTS.md",
+      "files": [
+        "restraint/AGENTS.md",
+        "restraint/CLAUDE.md",
+        "restraint/README.md",
+        "restraint/Makefile",
+        {
+          "from": "restraint/docs-releasing.md",
+          "to": "docs/releasing.md"
+        },
+        "restraint/.github-ci.yml"
+      ],
+      "downstream": [
+        {
+          "id": "release-steps",
+          "prompt": "We need to ship version 1.5.0 today. Write ANSWER.md with the exact steps this repo says to follow, in order, including the command, and what to do if it goes wrong after deploy. Do not run anything; write the file only."
+        },
+        {
+          "id": "single-test",
+          "prompt": "Write ANSWER.md containing (1) the command to run only the tests in internal/capture and (2) what must pass before a change is called done. Do not run anything; write the file only."
+        }
+      ]
     }
   ]
 }

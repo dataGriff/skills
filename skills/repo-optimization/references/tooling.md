@@ -163,3 +163,10 @@ jobs:
 
 New checks are added to the `ci` task, never to the YAML. Anything only CI
 can run is a failure contributors cannot reproduce.
+
+That skeleton is for a repo with no real workflow yet. An existing
+workflow with a matrix, caching, service containers, deploy or publish
+jobs, environments or secrets is **wrapped, never replaced**: keep every
+job and feature, replace only the inline check commands with the one
+`task ci` step, and leave the rest as it was. Deleting a workflow file or
+a job to make CI "thin" breaks the pipeline the repo depends on.

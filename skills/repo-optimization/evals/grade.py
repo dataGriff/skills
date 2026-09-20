@@ -414,7 +414,67 @@ def grade_notify(out: Path):
     )
 
 
-GRADERS = {"eval-0": grade_orders, "eval-1": grade_notify}
+RESTRAINT_ORIGINAL = {"AGENTS.md", "CLAUDE.md", "README.md", "Makefile", "docs/releasing.md",
+                      ".github-ci.yml"}
+RESTRAINT_ALLOWED_NEW = {"NOTES.md", ".github/workflows/ci.yml"}
+
+
+def grade_restraint(out: Path):
+    """The repo is already good: entry file within budget and followed,
+    commands in one working home, CI with real jobs. The right change is
+    one route to the unrouted doc. Grades that the arm held back."""
+    ex = []
+    claude = read(out / "CLAUDE.md").strip()
+    agents = read(out / "AGENTS.md")
+    ex.append(E("CLAUDE.md stays exactly '@AGENTS.md'", claude == "@AGENTS.md",
+                f"CLAUDE.md={claude[:60]!r}"))
+    rules = ["make help", "make ci", "gen/", "int64", "Idempotency-Key", "never edit a merged migration"]
+    kept = [r for r in rules if r.lower() in agents.lower()]
+    ex.append(E(f"AGENTS.md keeps its rules in place (>= {len(rules) - 1}/{len(rules)}) and stays "
+                f"within budget", len(kept) >= len(rules) - 1 and tokens(agents) <= AGENTS_MAX_TOKENS,
+                f"missing={[r for r in rules if r not in kept]} tokens={tokens(agents)}"))
+    releasing = out / "docs" / "releasing.md"
+    routes = [line[:80] for line, doc in doc_refs(out / "AGENTS.md", out)
+              if doc == releasing.resolve() and READ_CUE.search(line) and TRIGGER_CUE.search(line)]
+    ex.append(E("The one real gap is closed: AGENTS.md routes explicitly to docs/releasing.md",
+                releasing.is_file() and bool(routes), f"routes={routes[:2]}"))
+    soft = soft_routes(out / "AGENTS.md", out)
+    ex.append(E("Every route in AGENTS.md is explicit", agents and not soft, f"soft={soft[:3]}"))
+    added_runner = [n for n in ("Taskfile.yml", "Taskfile.yaml", "mise.toml", "justfile")
+                    if (out / n).is_file()]
+    ex.append(E("No second runner or tool pin added on a repo whose commands already have a "
+                "working home (no Taskfile/mise.toml)", not added_runner, f"added={added_runner}"))
+    stack = [n for n in (".githooks", "scripts/bootstrap.sh", ".claude/settings.json")
+             if (out / n).exists()]
+    ex.append(E("No hooks, bootstrap or session hook added where nothing needed them",
+                not stack, f"added={stack}"))
+    makefile = read(out / "Makefile")
+    targets = ["help:", "build:", "test:", "lint:", "ci:", "proto:", "migrate:", "run:", "release:"]
+    ex.append(E("Makefile keeps every target", all(t in makefile for t in targets),
+                f"missing={[t for t in targets if t not in makefile]}"))
+    # CI: untouched, or rewritten with every job and feature it had.
+    ci_new, ci_old = out / ".github" / "workflows" / "ci.yml", out / ".github-ci.yml"
+    ci_text = read(ci_new) if ci_new.is_file() else read(ci_old)
+    markers = ["matrix", "1.22", "1.23", "cache: true", "services", "postgres", "make ci",
+               "deploy:", "needs: test", "refs/tags/v", "environment: production",
+               "docker/build-push-action", "DEPLOY_TOKEN"]
+    lost = [m for m in markers if m not in ci_text]
+    ex.append(E("CI keeps doing everything it did: matrix, cache, services, make ci, and the "
+                "tag-gated deploy job with its secret (wrapped, never replaced)",
+                not lost, f"source={'ci.yml' if ci_new.is_file() else '.github-ci.yml'} lost={lost}"))
+    new_files = sorted(str(p.relative_to(out)) for p in out.rglob("*")
+                       if p.is_file() and not any(part.startswith(".skill") for part in p.parts)
+                       and str(p.relative_to(out)) not in RESTRAINT_ORIGINAL | RESTRAINT_ALLOWED_NEW)
+    ex.append(E("No other files created: the change is edits to what exists plus NOTES.md",
+                not new_files, f"new={new_files[:6]}"))
+    notes = read(out / "NOTES.md")
+    ex.append(E("NOTES.md reports before/after cold-start numbers and the chosen outcome",
+                bool(re.search(r"\d", notes)) and re.search(r"before", notes, re.I)
+                and re.search(r"after", notes, re.I), f"len={len(notes)}"))
+    return ex
+
+
+GRADERS = {"eval-0": grade_orders, "eval-1": grade_notify, "eval-2": grade_restraint}
 
 
 # --- downstream tasks: does the restructured repo make later work cheaper? ---
@@ -520,6 +580,15 @@ DOWNSTREAM = {
         out, "email.test.ts", ["pnpm lint", "pnpm typecheck", "pnpm test"]),
     ("eval-1", "new-channel"): ds_new_channel,
     ("eval-1", "add-rule"): lambda out, pre=frozenset(): ds_add_rule(out, ["src/links.ts", "raw url"], pre),
+    ("eval-2", "release-steps"): lambda out: ds_answer_items(out, [
+        ("releasing from main only", ["from main", "main branch", "on main", "`main`"]),
+        ("the CHANGELOG heading the script requires", ["changelog"]),
+        ("the release command (make release VERSION=1.5.0)", ["make release"]),
+        ("rollback by re-releasing the previous version, not git revert", ["previous", "roll back", "rollback"]),
+        ("watching gateway_auth_failures_total after deploy", ["gateway_auth_failures_total", "auth_failures"]),
+    ]),
+    ("eval-2", "single-test"): lambda out: ds_single_test(
+        out, "internal/capture", ["make lint", "make test"]),
     ("eval-1", "queue-backlog"): lambda out: ds_answer_items(out, [
         ("checking worker pods (kubectl get pods -l app=notify-worker)", ["notify-worker"]),
         ("the Redis memory 80% check before scaling workers", ["80"]),

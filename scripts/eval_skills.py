@@ -150,6 +150,17 @@ def run_claude(
     return info
 
 
+def copy_fixtures(fixtures: Path, entries: list, dest: Path) -> None:
+    """Fixture entries are "path" (lands at the root under its basename)
+    or {"from": path, "to": relative/path} for files that must sit in a
+    subdirectory (docs/, .github/) of the snapshot."""
+    for entry in entries:
+        src = fixtures / (entry["from"] if isinstance(entry, dict) else entry)
+        target = dest / (entry["to"] if isinstance(entry, dict) else Path(src).name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, target)
+
+
 def run_downstream(
     ev: dict, eval_dir: Path, fixtures: Path, scratch: Path,
     model: str | None, allowed_tools: list[str], repeats: int,
@@ -183,8 +194,7 @@ def run_downstream(
         work = scratch / eval_dir.name / rel / "outputs"
         work.mkdir(parents=True, exist_ok=True)
         if src is None:
-            for fixture in ev.get("files", []):
-                shutil.copy(fixtures / fixture, work / Path(fixture).name)
+            copy_fixtures(fixtures, ev.get("files", []), work)
         else:
             # The arm's own artefacts (.skill copy, NOTES.md) are not part
             # of the repo a later agent would see.
@@ -263,8 +273,7 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             final_outputs = eval_dir / arm / "outputs"
             outputs = scratch / eval_dir.name / arm / "outputs"
             outputs.mkdir(parents=True, exist_ok=True)
-            for fixture in ev.get("files", []):
-                shutil.copy(fixtures / fixture, outputs / Path(fixture).name)
+            copy_fixtures(fixtures, ev.get("files", []), outputs)
             # Eval sessions may be sandboxed to their working directory (e.g.
             # on remote runners), so the with_skill arm gets a local copy of
             # the skill rather than a path it may not be allowed to read.
