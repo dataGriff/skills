@@ -16,12 +16,12 @@ Downstream tasks - the same follow-up jobs run in the fixture repo before the re
 
 | Eval | State | Runs | Adherence | Turns | Reads before first write | Tokens | Cost |
 |------|-------|------|-----------|-------|--------------------------|--------|------|
-| small-python-repo-from-readme | before | 3 | 5/5 | 7.0 | 4.7 | 185,246 | $0.10 |
-| small-python-repo-from-readme | after-baseline | 3 | 4/5 | 5.0 | 2.0 | 214,347 | $0.11 |
-| small-python-repo-from-readme | after-skill | 3 | 5/5 | 4.3 | 1.0 | 196,700 | $0.10 |
-| fat-claude-md-restructure | before | 3 | 9/9 | 2.3 | 0.3 | 105,527 | $0.08 |
-| fat-claude-md-restructure | after-baseline | 3 | 9/9 | 6.0 | 3.3 | 234,439 | $0.11 |
-| fat-claude-md-restructure | after-skill | 3 | 9/9 | 2.0 | 0.0 | 85,343 | $0.06 |
+| small-python-repo-from-readme | before | 12 | 26/27 | 6.7 | 4.4 | 180,742 | $0.09 |
+| small-python-repo-from-readme | after-baseline | 12 | 27/27 | 6.2 | 2.6 | 253,660 | $0.12 |
+| small-python-repo-from-readme | after-skill | 12 | 27/27 | 4.9 | 2.3 | 204,242 | $0.10 |
+| fat-claude-md-restructure | before | 12 | 37/42 | 2.9 | 0.9 | 124,380 | $0.09 |
+| fat-claude-md-restructure | after-baseline | 12 | 42/42 | 5.7 | 3.3 | 205,065 | $0.11 |
+| fat-claude-md-restructure | after-skill | 12 | 42/42 | 4.0 | 1.6 | 167,885 | $0.09 |
 
 Full outputs (gitignored): `.evals/repo-optimization/20260920-185310/`.
 
@@ -49,26 +49,45 @@ this run established:
   rule. Every other route it wrote was a "Before you ..., read docs/..."
   line, though as bare paths rather than links; the grader now accepts
   either, and the skill text asks for links.
-- **Downstream: the restructured repo is cheaper to work in, and a naive
-  restructure is dearer than the wall of text it replaced.** The same
-  three follow-up tasks per fixture, one run each (so treat single-run
-  differences as indicative):
-  - Small Python repo: reads before the first write fell from 4.7 (README
-    only, which nothing auto-loads) to 2.0 after the baseline restructure
-    and 1.0 after the skill's; turns from 7.0 to 5.0 to 4.3. Adherence 5/5
-    before and after the skill, 4/5 after the baseline.
-  - Fat CLAUDE.md service: the original already costs 0.3 reads and 2.3
-    turns, because a 2000-token CLAUDE.md is auto-loaded and answers
-    everything. The baseline restructure hid the rules behind docs and
-    made later work *worse*: 3.3 reads, 6.0 turns, 234k tokens. The
-    skill's AGENTS.md-first layout kept it at 0.0 reads and 2.0 turns at
-    85k tokens, below the original's 106k. That is the case for carrying
-    the common case in AGENTS.md rather than routing it.
-  - Token totals include the CLI's cached system prompt (about 85k per run
-    is the floor for a single-write task), so the repo-specific saving is
-    larger than the ratios suggest. Adherence separated nothing on the
-    notify fixture (9/9 in every state): those tasks need harder rules, or
-    2-3 repeats, before adherence can carry a decision.
+- **Downstream, 3 repeats, four tasks per fixture including one whose
+  facts live only in the runbook or deploy section.** What the skill's
+  layout buys a later agent, against the original docs and against the
+  baseline's restructure:
+  - *Rule adherence.* Skill layout 27/27 and 42/42. Original docs 26/27
+    and 37/42: with RUNBOOK.md sitting unrouted beside CLAUDE.md, one run
+    in three answered the queue-backlog incident without opening it and
+    missed every runbook fact; with the runbook routed ("Before you
+    respond to a production incident, read docs/runbook.md") no run
+    missed. Baseline restructure 27/27 and 42/42 as well, once the
+    grader accepted `make ci` as an entrypoint.
+  - *Orientation.* Reads before the first write: README-only fixture 4.4
+    (original) → 2.6 (baseline) → 2.3 (skill); fat CLAUDE.md fixture 0.9
+    → 3.3 → 1.6. Turns: 6.7 → 6.2 → 4.9 and 2.9 → 5.7 → 4.0. The skill's
+    layout is the cheapest restructure on both, and on the README-only
+    repo cheaper than the original. On the fat CLAUDE.md repo the
+    original wall of text is cheaper to orient in than either
+    restructure, because it is auto-loaded and answers everything; the
+    skill's layout gives back about half of what the baseline's
+    restructure lost.
+  - *Tokens and cost.* Per task: 181k → 254k → 204k, and 124k → 205k →
+    168k. Totals scale with turns times context, and the restructured
+    repo carries a larger auto-loaded AGENTS.md on every turn, so fewer
+    reads do not translate into fewer tokens against the original; the
+    skill only beats the baseline restructure. Cost is flat at $0.09 to
+    $0.12 per task in every state.
+  - *Where the skill's layout costs more.* Adding a rule to the notify
+    repo took 3.7 reads under the skill's layout against 1.7 in the
+    original: with rules split between AGENTS.md and routed docs the agent
+    reads several to decide where a new one belongs. Adding a task always
+    reads the Taskfile. Those are inherent to a fanned-out repo.
+  - *Verdict.* The skill helps on what the routes are for: rules that
+    live only in a routed doc get followed, and orientation takes fewer
+    reads and turns than any unguided restructure. It does not reduce
+    per-task tokens against a repo whose docs are small enough to
+    auto-load whole, and it can add a read when placing new content.
+    Restructuring a repo that already fits in one auto-loaded file buys
+    reliability of routed rules and structure the checks keep, not
+    tokens; the earlier single-run token win (85k vs 106k) was noise.
 
 ## Notes: first evals and what they changed (2026-09-09)
 

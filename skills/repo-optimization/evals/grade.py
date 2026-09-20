@@ -334,13 +334,15 @@ def convention_files(out: Path) -> list[Path]:
 
 def ds_single_test(out: Path, selector: str, raw_checks: list[str]):
     answer = read(out / "ANSWER.md")
-    via_task = bool(re.search(r"\btask (ci|check|lint|test)\b", answer))
+    # Any runner's single entrypoint counts: the point is one command that
+    # is the definition of green, not which runner provides it.
+    via_task = bool(re.search(r"\b(task|make|npm run|pnpm|just) (ci|check|verify|lint|test)\b", answer))
     raw_found = [c for c in raw_checks if c in answer]
     return [
         E(f"ANSWER.md names the single-test command ({selector})",
           selector in answer, answer[:160]),
         E("ANSWER.md names the pre-push checks: the repo's one entrypoint "
-          "(task ci/check) or every raw check command",
+          "(task/make ci or check) or every raw check command",
           via_task or len(raw_found) == len(raw_checks),
           f"task={via_task} raw={raw_found}"),
     ]
