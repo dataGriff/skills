@@ -392,15 +392,36 @@ def ds_new_channel(out: Path):
             for label, keys in items]
 
 
+def ds_answer_items(out: Path, items: list[tuple[str, list[str]]]):
+    """One check per fact the answer must carry; each fact lives only in
+    a doc the layout has to route the agent to."""
+    answer = read(out / "ANSWER.md").lower()
+    return [E(f"ANSWER.md includes {label}", any(k.lower() in answer for k in keys), "")
+            for label, keys in items]
+
+
 DOWNSTREAM = {
     ("eval-0", "single-test"): lambda out: ds_single_test(
         out, "test_pricing.py::test_discount", ["ruff check", "mypy", "npm run lint"]),
     ("eval-0", "new-command"): ds_new_command,
     ("eval-0", "add-rule"): lambda out: ds_add_rule(out, ["minor units"]),
+    ("eval-0", "prod-incident"): lambda out: ds_answer_items(out, [
+        ("the rollback command (deploy.sh prod --rollback or its task)", ["--rollback", "rollback"]),
+        ("the DEPLOY_TOKEN requirement", ["DEPLOY_TOKEN"]),
+        ("that prod deploys happen from main", ["from main", "main branch", "on main", "from `main`"]),
+        ("alembic upgrade head for the out-of-date database", ["upgrade head"]),
+    ]),
     ("eval-1", "single-test"): lambda out: ds_single_test(
         out, "email.test.ts", ["pnpm lint", "pnpm typecheck", "pnpm test"]),
     ("eval-1", "new-channel"): ds_new_channel,
     ("eval-1", "add-rule"): lambda out: ds_add_rule(out, ["src/links.ts", "raw url"]),
+    ("eval-1", "queue-backlog"): lambda out: ds_answer_items(out, [
+        ("checking worker pods (kubectl get pods -l app=notify-worker)", ["notify-worker"]),
+        ("the Redis memory 80% check before scaling workers", ["80"]),
+        ("pausing the dominant channel with queue:pause", ["queue:pause"]),
+        ("resuming with queue:resume", ["queue:resume"]),
+        ("not deleting jobs", ["not delete", "never delete", "don't delete", "do not delete"]),
+    ]),
 }
 
 

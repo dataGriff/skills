@@ -1,6 +1,6 @@
 {
   "skill_name": "repo-optimization",
-  "downstream_repeats": 1,
+  "downstream_repeats": 3,
   "evals": [
     {
       "id": 0,
@@ -26,6 +26,10 @@
         {
           "id": "add-rule",
           "prompt": "Add the convention 'Refund amounts are stored in minor units as Decimal, never float' where this repo keeps its conventions, so that both contributors and AI agents will find it. Do not run anything; write files only."
+        },
+        {
+          "id": "prod-incident",
+          "prompt": "The last production deploy is broken and must be rolled back, and a teammate's alembic run says the target database is not up to date. Write ANSWER.md with exactly what to run for each, in order, and every constraint this repo puts on a production deploy. Do not run anything; write the file only."
         }
       ]
     },
@@ -51,6 +55,10 @@
         {
           "id": "add-rule",
           "prompt": "Add the convention 'Every SMS body must pass through src/links.ts before send; never paste a raw URL into an SMS' where this repo keeps its rules, so that contributors and AI agents will find it. Do not run anything; write files only."
+        },
+        {
+          "id": "queue-backlog",
+          "prompt": "The production queue backlog is growing. Write ANSWER.md with the exact steps this repo says to take, in order, including the commands, and what not to do. Do not run anything; write the file only."
         }
       ]
     }
