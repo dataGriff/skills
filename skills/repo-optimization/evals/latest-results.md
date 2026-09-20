@@ -1,29 +1,66 @@
 # Eval results: repo-optimization
 
-Last run: 20260920-194303 UTC via `task eval:skills NAME=repo-optimization MODEL=claude-sonnet-5` (commit this file with the skill change so the PR carries the evidence).
+Last run: 20260920-201340 UTC via `task eval:skills NAME=repo-optimization MODEL=claude-sonnet-5` (commit this file with the skill change so the PR carries the evidence).
 
 Models served: claude-haiku-4-5-20251001, claude-sonnet-5.
 
 | Eval | With skill | Baseline | Turns (skill/base) | Time (skill/base) | Cost (skill/base) |
 |------|-----------|----------|--------------------|-------------------|-------------------|
-| small-python-repo-from-readme | 16/16 | 7/16 | 47 / 44 | 398.6s / 292.4s | $1.22 / $0.94 |
-| fat-claude-md-fits-budget | 10/10 | 8/10 | 16 / 14 | 128.4s / 147.9s | $0.42 / $0.41 |
+| small-python-repo-from-readme | 16/16 | 5/16 | 51 / 36 | 423.5s / 280.9s | $1.39 / $0.84 |
+| fat-claude-md-fits-budget | 10/10 | 8/10 | 12 / 11 | 86.8s / 124.0s | $0.31 / $0.33 |
+| already-good-repo-restraint | 10/10 | 8/10 | 11 / 9 | 80.1s / 67.7s | $0.24 / $0.18 |
 
-Grader checks that separated the arms: small-python-repo-from-readme 9/16, fat-claude-md-fits-budget 2/10. A check both arms always pass measures nothing; a score delta with none separating is noise.
-Token cost, with skill / baseline: 1.07x. Turns above the baseline usually mean SKILL.md loads bundled files unconditionally.
+Grader checks that separated the arms: small-python-repo-from-readme 11/16, fat-claude-md-fits-budget 2/10, already-good-repo-restraint 2/10. A check both arms always pass measures nothing; a score delta with none separating is noise.
+Token cost, with skill / baseline: 1.50x. Turns above the baseline usually mean SKILL.md loads bundled files unconditionally.
 
 Downstream tasks - the same follow-up jobs run in the fixture repo before the restructure, after the baseline arm's restructure, and after the skill arm's (means per run; adherence = grader checks the answers passed). This is the cost the skill is meant to reduce: what a later agent pays to orient and whether it follows the repo's rules.
 
 | Eval | State | Runs | Adherence | Turns | Reads before first write | Tokens | Cost |
 |------|-------|------|-----------|-------|--------------------------|--------|------|
-| small-python-repo-from-readme | before | 12 | 27/27 | 7.1 | 4.8 | 188,262 | $0.10 |
-| small-python-repo-from-readme | after-baseline | 12 | 26/27 | 5.2 | 2.2 | 211,647 | $0.10 |
-| small-python-repo-from-readme | after-skill | 12 | 27/27 | 5.2 | 2.7 | 198,010 | $0.10 |
-| fat-claude-md-fits-budget | before | 12 | 35/39 | 3.0 | 1.0 | 126,734 | $0.08 |
-| fat-claude-md-fits-budget | after-baseline | 12 | 39/39 | 2.4 | 0.4 | 104,389 | $0.07 |
-| fat-claude-md-fits-budget | after-skill | 12 | 39/39 | 3.0 | 0.9 | 131,877 | $0.09 |
+| small-python-repo-from-readme | before | 12 | 27/27 | 7.0 | 4.6 | 192,243 | $0.10 |
+| small-python-repo-from-readme | after-baseline | 12 | 27/27 | 7.3 | 4.0 | 256,946 | $0.13 |
+| small-python-repo-from-readme | after-skill | 12 | 27/27 | 4.1 | 1.8 | 173,332 | $0.10 |
+| fat-claude-md-fits-budget | before | 12 | 31/39 | 2.8 | 0.8 | 124,501 | $0.09 |
+| fat-claude-md-fits-budget | after-baseline | 12 | 39/39 | 4.6 | 2.4 | 181,029 | $0.10 |
+| fat-claude-md-fits-budget | after-skill | 12 | 39/39 | 3.0 | 0.8 | 135,787 | $0.09 |
+| already-good-repo-restraint | before | 6 | 21/21 | 4.3 | 2.3 | 126,981 | $0.07 |
+| already-good-repo-restraint | after-baseline | 6 | 21/21 | 4.5 | 2.5 | 126,735 | $0.07 |
+| already-good-repo-restraint | after-skill | 6 | 21/21 | 3.0 | 1.0 | 125,552 | $0.07 |
 
-Full outputs (gitignored): `.evals/repo-optimization/20260920-194303/`.
+Full outputs (gitignored): `.evals/repo-optimization/20260920-201340/`.
+
+## Notes: restraint fixture and CI wrap rule (2026-09-20, run 201340)
+
+A third fixture tests the case the skill could still degrade: a repo that
+is already good (a followed 48-line AGENTS.md, CLAUDE.md as the include,
+a Makefile with `make help`, a CI workflow with a matrix, caching, service
+containers and a tag-gated deploy job) with one unrouted doc. The correct
+output is one route line and NOTES.md. The skill also gained the rule that
+an existing workflow with real jobs is wrapped in place, never replaced.
+
+- **It held back.** The skill arm touched AGENTS.md (one explicit route
+  to docs/releasing.md) and wrote NOTES.md; no Taskfile, mise, hooks or
+  bootstrap; every Makefile target kept; the workflow untouched. 10/10 in
+  11 turns and $0.24. The baseline (8/10) also held back but did not add
+  the route. Downstream, the routed doc cut the release task from 2.3
+  reads and 4.3 turns to 1.0 and 3.0 at equal adherence (the README's
+  soft mention was enough to find it eventually; the route makes it
+  immediate).
+- **The other two fixtures held their results.** README-only: 16/16
+  against 5/16, and this run the skill's layout was cheaper than the
+  original on every measure (4.1 turns, 1.8 reads, 173k tokens against
+  7.0, 4.6, 192k) while the baseline's restructure was dearer than the
+  original (7.3, 4.0, 257k). Fat CLAUDE.md: routes only again, 10/10 in
+  12 turns and $0.31; downstream 39/39 with the runbook routed against
+  31/39 unrouted, where two runs in twelve skipped it; cost level with
+  the original (3.0 turns, 0.8 reads, 136k against 2.8, 0.8, 125k).
+- **What this does and does not establish.** Across three fixtures and
+  one model the skill's outcome was never worse than the original on
+  adherence, reads or turns, and on the already-good repo it changed one
+  line. Not covered: a workflow where the inline checks have to be
+  swapped for `task ci` inside a job that must survive (the fixture's
+  workflow already ran `make ci`, so the wrap rule was exercised only as
+  "leave it alone"); other models; tasks that edit code.
 
 ## Notes: the skill now chooses the least change (2026-09-20, run 194303)
 
