@@ -28,6 +28,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -112,6 +113,12 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     iteration = EVAL_ROOT / skill_dir.name / stamp
     fixtures = skill_dir / "evals" / "fixtures"
+    # Each arm runs in a scratch directory OUTSIDE the repo tree and is
+    # moved under .evals/ afterwards. `claude -p` loads CLAUDE.md from every
+    # ancestor of its working directory, so a session under .evals/ would
+    # read this repo's AGENTS.md - the baseline arm then sees the very
+    # conventions the skill teaches and the comparison measures nothing.
+    scratch = Path(tempfile.mkdtemp(prefix=f"skill-eval-{skill_dir.name}-"))
 
     for ev in spec["evals"]:
         eval_dir = iteration / f"eval-{ev['id']}-{ev['name']}"
@@ -119,7 +126,8 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             ("with_skill", WITH_SKILL_PROMPT),
             ("without_skill", BASELINE_PROMPT),
         ):
-            outputs = eval_dir / arm / "outputs"
+            final_outputs = eval_dir / arm / "outputs"
+            outputs = scratch / eval_dir.name / arm / "outputs"
             outputs.mkdir(parents=True, exist_ok=True)
             for fixture in ev.get("files", []):
                 shutil.copy(fixtures / fixture, outputs / Path(fixture).name)
@@ -141,8 +149,11 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             add_dir = eval_skill_dir if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
             info = run_claude(prompt, outputs, model, add_dir, allowed_tools)
+            final_outputs.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(outputs), str(final_outputs))
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
             print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
+    shutil.rmtree(scratch, ignore_errors=True)
 
     grader = skill_dir / "evals" / "grade.py"
     if grader.is_file():

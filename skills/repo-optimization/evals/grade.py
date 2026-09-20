@@ -147,27 +147,41 @@ def common_checks(out: Path, original_tokens: int, expect_index: bool | None,
                     not index.is_file(),
                     f"docs/index.md exists={index.is_file()} original_docs_tokens={original_tokens}"))
     else:
-        routed = [t for t in MD_LINK.findall(read(index))
-                  if not t.startswith("http") and (index.parent / t).is_file()]
-        # Routed docs must carry content, not just route again (max two
-        # hops): a doc where most lines are links is another index.
+        # Detail must fan out to topic docs that hold content, each reached
+        # from AGENTS.md directly or via docs/index.md (<= 2 hops). The
+        # index itself is optional: with few docs, direct routes are cheaper.
+        docs_root = (out / "docs").resolve()
+        routers = [p for p in (out / "AGENTS.md", index) if p.is_file()]
+        routed = set()
+        for r in routers:
+            for t in DOC_LINK.findall(read(r)):
+                p = (r.parent / t).resolve()
+                if p.is_file() and docs_root in p.parents and p != index.resolve():
+                    routed.add(p)
+        topic_docs = [p for p in (sorted(docs_root.rglob("*.md")) if docs_root.is_dir() else [])
+                      if p.resolve() != index.resolve()]
+        unrouted = [p.name for p in topic_docs if p.resolve() not in routed]
         shallow = []
-        for t in routed:
-            lines = [l for l in read(index.parent / t).splitlines() if l.strip()]
+        for p in routed:
+            lines = [l for l in read(p).splitlines() if l.strip()]
             link_lines = [l for l in lines if MD_LINK.search(l)]
             if lines and len(link_lines) / len(lines) > 0.5:
-                shallow.append(t)
-        ex.append(E("docs/index.md routes to >= 2 topic docs, each holding content "
-                    "rather than routing onward again (<= 2 hops)",
-                    len(routed) >= 2 and not shallow,
-                    f"routed={len(routed)} routing-only={shallow}"))
+                shallow.append(p.name)
+        ex.append(E("Detail fans out to >= 2 topic docs under docs/, each routed from "
+                    "AGENTS.md or docs/index.md and holding content rather than "
+                    "routing onward again (<= 2 hops)",
+                    len(routed) >= 2 and not unrouted and not shallow,
+                    f"routed={len(routed)} unrouted={unrouted[:4]} routing-only={shallow}"))
 
     # Always-loaded layer after the change: AGENTS.md alone (the index is
-    # read only when AGENTS.md does not cover the task).
+    # read only when AGENTS.md does not cover the task). It must shrink
+    # only when the original was over budget; a small repo's AGENTS.md
+    # legitimately carries everything the README did plus the new rules.
     cold = tokens(agents)
-    ex.append(E(f"Always-loaded layer (AGENTS.md) <= {AGENTS_MAX_TOKENS} est. tokens "
-                "and below the original always-loaded docs",
-                agents and cold <= AGENTS_MAX_TOKENS and cold < original_tokens,
+    shrunk = cold < original_tokens if original_tokens > AGENTS_MAX_TOKENS else True
+    ex.append(E(f"Always-loaded layer (AGENTS.md) <= {AGENTS_MAX_TOKENS} est. tokens, "
+                "and smaller than the original when that was over budget",
+                agents and cold <= AGENTS_MAX_TOKENS and shrunk,
                 f"before={original_tokens} after={cold}"))
 
     tf, data, tasks, tf_text = taskfile_info(out)
