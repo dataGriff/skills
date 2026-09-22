@@ -1,0 +1,30 @@
+{
+  "skill_name": "repo-declutter",
+  "allowed_tools": ["Bash(python *)", "Bash(python3 *)", "Bash(git *)"],
+  "downstream_repeats": 2,
+  "evals": [
+    {
+      "id": 0,
+      "name": "doc-heavy-service",
+      "prompt": "Declutter the documentation of this snapshot of the ledger-api repo so it is cheaper to read without losing any rule, command, path or decision. Do the audit first: write DECLUTTER-AUDIT.md listing every finding with what, where, why it is noise, the proposed action, and what git history already holds. This snapshot has no history: run git init and commit the snapshot first (pass -c user.name=eval -c user.email=eval@example.com if git has no identity) so your changes are reviewable, then apply the changes as one commit per category. Do not ask questions.",
+      "expected_output": "DECLUTTER-AUDIT.md with the columns what/where/why/action/git-holds and a protected-kept list; the History and 'How we got here' sections and the migration diary removed from README and docs with their gist in commit bodies or CHANGELOG.md; hedges gone; install steps in one place with a route from the other; every rule, command, path and decision kept (MIT/LICENSE, Vault, make test, PORT=8080, ruff, alembic upgrade head, UUIDv7/ADR-3, branch and commit rules); README markedly shorter; separate commits per category",
+      "files": [
+        "docs-heavy/README.md",
+        {"from": "docs-heavy/docs-setup.md", "to": "docs/setup.md"},
+        {"from": "docs-heavy/docs-architecture.md", "to": "docs/architecture.md"},
+        "docs-heavy/CONTRIBUTING.md"
+      ],
+      "downstream": [
+        {"id": "orient",
+         "prompt": "Write ANSWER.md with (1) the command that runs the tests, (2) the rule about identifiers, and (3) where secrets come from. Do not run anything; write the file only."}
+      ]
+    },
+    {
+      "id": 1,
+      "name": "noisy-python-module",
+      "prompt": "Declutter the code in this snapshot: remove comment noise and make unclear code clear without changing behaviour. Audit first into DECLUTTER-AUDIT.md (what, where, why, action, what git history holds), then apply. In code, only renames and extract-function are allowed; the tests in test_pricing.py must pass before and after (python3 -m unittest). Do not ask questions.",
+      "expected_output": "SPDX and copyright header kept; the FIN-212 rounding comment and the never-log-card_token comment kept; banner, attribution, restating comments, the commented-out old implementation and the 2021 TODO removed; calc(d, r, f) renamed to descriptive parameter names (and the papering comment removed) with tests updated to match; no behaviour change; tests pass; DECLUTTER-AUDIT.md present with a git-holds column",
+      "files": ["code/pricing.py", "code/test_pricing.py", "code/LICENSE"]
+    }
+  ]
+}

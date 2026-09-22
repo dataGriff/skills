@@ -110,7 +110,11 @@ priority order and stop when the budget is reached:
 
 Then make `CLAUDE.md` contain exactly `@AGENTS.md` — a pure include, so
 there is one agent entrypoint and nothing to drift — and shrink `README.md`
-to orientation, the quick start, and a link onward. If everything
+to orientation, the quick start, and a link onward. When a doc you keep or
+route to is itself verbose — history sections, hedged prose, duplicated
+setup steps — apply the `repo-declutter` skill to it before routing to it:
+this skill decides where content lives, that one decides how much of it
+should exist. If everything
 agent-relevant fits in AGENTS.md (under ~2000 tokens in total), stop here:
 no `docs/`, no `docs/README.md`. One file the agent already has beats a
 Read call to reach the same content.
