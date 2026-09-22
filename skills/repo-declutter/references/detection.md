@@ -49,13 +49,6 @@ Before:
 After (in the doc): nothing, or one line if the present needs it:
 "The HTTP layer is FastAPI." After (in the commit body): the paragraph.
 
-## Duplicate
-
-Normalise paragraphs (lowercase, collapse whitespace) and look for the same
-text longer than ~80 characters in two files; commands in fenced blocks
-count too. Keep the copy in the doc the entry file routes to; the other
-becomes a route line ("Setup: read docs/setup.md").
-
 ## Comment
 
 | Signal | Pattern | False positive |

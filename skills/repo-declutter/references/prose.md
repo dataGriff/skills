@@ -1,5 +1,9 @@
 # Prose: shorter without losing a fact
 
+The editing method is the `orwell-prose` skill's (short words, cut needless
+words, active voice, no stale figures); apply it when it is installed. The
+rules below are the repo-specific additions: what a doc must not lose.
+
 ## Rules
 
 1. **Lead with the rule, then the reason.** "Never edit a merged migration;
@@ -58,5 +62,6 @@ Every fact survives; the hedges did not.
 
 - It is history (see the `history` category): move the gist to the commit
   body or `CHANGELOG.md`.
-- It duplicates another doc: replace with a route line.
+- It duplicates another doc: that is the consistency checker's call
+  (canonical home, pointer from the other); leave the copy and note it.
 - Nobody needs it now: delete, and say so in the commit body.

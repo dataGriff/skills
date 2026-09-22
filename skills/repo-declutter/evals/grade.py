@@ -66,7 +66,7 @@ def git_subjects(out: Path) -> list[str]:
         return []
 
 
-def audit_checks(out: Path, min_rows: int):
+def audit_checks(out: Path, min_rows: int, min_categories: int = 3):
     audit = read(out / "DECLUTTER-AUDIT.md")
     header = audit.lower()
     columns = ["what", "why", "action", "git"]
@@ -74,13 +74,13 @@ def audit_checks(out: Path, min_rows: int):
     rows = [l for l in audit.splitlines() if l.startswith("|") and not re.match(r"^\|\s*-", l)]
     rows = [r for r in rows if not re.search(r"\|\s*#?\s*\|\s*(file|where|location)", r, re.I)]
     categories = {m.lower() for r in rows
-                  for m in re.findall(r"\b(prose|history|duplicate|comment|code-clarity)\b", r, re.I)}
+                  for m in re.findall(r"\b(prose|history|comment|code-clarity)\b", r, re.I)}
     return [
         E("DECLUTTER-AUDIT.md exists with what / where / why / action / git-holds columns",
           audit and has_where and all(c in header for c in columns),
           f"len={len(audit)} missing={[c for c in columns if c not in header]} where={has_where}"),
-        E(f"Audit is a real inventory: >= {min_rows} finding rows across >= 3 categories",
-          len(rows) >= min_rows and len(categories) >= 3,
+        E(f"Audit is a real inventory: >= {min_rows} finding rows across >= {min_categories} categories",
+          len(rows) >= min_rows and len(categories) >= min_categories,
           f"rows={len(rows)} categories={sorted(categories)}"),
         E("Audit lists what was deliberately kept (a protected/kept section)",
           bool(re.search(r"protected|kept|left in place", audit, re.I)), ""),
@@ -88,7 +88,7 @@ def audit_checks(out: Path, min_rows: int):
 
 
 def grade_docs(out: Path):
-    ex = audit_checks(out, min_rows=8)
+    ex = audit_checks(out, min_rows=8, min_categories=2)  # docs: prose + history
     docs = docs_in(out)
     changelog = out / "CHANGELOG.md"
     body_docs = [p for p in docs if p != changelog]
@@ -112,10 +112,6 @@ def grade_docs(out: Path):
     ex.append(E("No changelog-style heading remains inside a non-changelog doc",
                 not any(CHANGELOG_HEADING.search(read(p)) for p in body_docs),
                 f"in={[p.name for p in body_docs if CHANGELOG_HEADING.search(read(p))]}"))
-    marker = 'pip install -e ".[dev]"'
-    homes = [str(p.relative_to(out)) for p in body_docs if marker in read(p)]
-    ex.append(E("Install steps have exactly one home; the other doc routes to it",
-                len(homes) == 1, f"homes={homes}"))
     hedges = sum(len(HEDGE.findall(read(p))) for p in body_docs)
     ex.append(E("Hedging phrases are gone (<= 1 left; the fixture seeds over 30)",
                 hedges <= 1, f"hedges={hedges}"))
@@ -128,7 +124,7 @@ def grade_docs(out: Path):
                 f"readme {original_readme}->{readme_now} total {original_total}->{total_now}"))
     subjects = git_subjects(out)
     cats = {m.lower() for s in subjects
-            for m in re.findall(r"\b(prose|history|duplicate|docs|comment|code-clarity)\b", s, re.I)}
+            for m in re.findall(r"\b(prose|history|docs|comment|code-clarity)\b", s, re.I)}
     ex.append(E("Changes land as separate commits per category (>= 3 category-named subjects; "
                 "vacuous pass when no git repo was created)",
                 not subjects or len(cats) >= 3, f"subjects={subjects[:6]}"))

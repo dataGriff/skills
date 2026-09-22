@@ -13,13 +13,11 @@ from __future__ import annotations
 
 import re
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 COMMENT_DENSITY_WARN = 0.30   # comment lines / code lines; above this, look closer
 DOC_WARN_TOKENS = 1500        # a doc past this is worth a rewrite pass
 LONG_SENTENCE_WORDS = 30
-DUPLICATE_MIN_CHARS = 80
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", ".skill",
              "__pycache__", ".evals", "vendor", "third_party"}
@@ -78,7 +76,8 @@ def marker_for(path: Path) -> str | None:
 
 
 def blocks(text: str) -> tuple[list[str], list[str]]:
-    """(prose paragraphs, fenced code blocks), each whitespace-normalised."""
+    """(prose paragraphs, fenced code blocks), each whitespace-normalised.
+    Duplicated paragraphs across files are the consistency checker's scan."""
     prose, fences, fenced, current = [], [], False, []
     for line in text.splitlines():
         if line.strip().startswith("```"):
@@ -98,14 +97,10 @@ def blocks(text: str) -> tuple[list[str], list[str]]:
     return prose, fences
 
 
-def scan_doc(path: Path, text: str, seen: dict[str, list[str]], rel: str) -> dict:
-    paragraphs, fences = blocks(text)
+def scan_doc(path: Path, text: str, rel: str) -> dict:
+    paragraphs, _ = blocks(text)
     prose = " ".join(paragraphs)
     sentences = [s for s in SENTENCE_END.split(prose) if s.strip()]
-    for para in paragraphs + fences:  # duplicated commands count too
-        key = re.sub(r"\s+", " ", para.lower())
-        if len(key) >= DUPLICATE_MIN_CHARS:
-            seen[key].append(rel)
     return {
         "file": rel,
         "lines": len(text.splitlines()),
@@ -170,14 +165,13 @@ def main(argv: list[str]) -> int:
         return 0
 
     doc_rows, code_rows = [], []
-    seen: dict[str, list[str]] = defaultdict(list)
     for path in files_under(root):
         rel = str(path.relative_to(root))
         text = read(path)
         if not text:
             continue
         if path.suffix in DOC_SUFFIXES and not code_only:
-            doc_rows.append(scan_doc(path, text, seen, rel))
+            doc_rows.append(scan_doc(path, text, rel))
         elif (marker := marker_for(path)) and not docs_only:
             code_rows.append(scan_code(path, text, marker, rel))
 
@@ -187,12 +181,6 @@ def main(argv: list[str]) -> int:
                                ("history", "history cues"), ("changelog_headings", "changelog headings"),
                                ("dated", "dated entries"), ("hedges", "hedges"),
                                ("long", f"sentences > {LONG_SENTENCE_WORDS} words")]))
-        print()
-    duplicates = {k: v for k, v in seen.items() if len(set(v)) > 1}
-    if duplicates and not code_only:
-        print("## Duplicated paragraphs\n")
-        for key, where in duplicates.items():
-            print(f"- {sorted(set(where))}: \"{key[:70]}…\"")
         print()
     if code_rows:
         print(f"## Code (warn: density > {COMMENT_DENSITY_WARN}, any commented-out code, banner or attribution)\n")
