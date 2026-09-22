@@ -1,0 +1,23 @@
+{
+  "skill_name": "api-security",
+  "evals": [
+    {
+      "id": 0,
+      "name": "review-orders-api",
+      "prompt": "Before we expose our orders service publicly, security wants a review. The Flask app is vulnerable-orders-api.py in the current directory. Do a security review of it and write security-review.md: findings ranked by severity, and for each finding the location (file:line), the concrete exploit an attacker would run, and the specific fix. Do not modify the application code.",
+      "expected_output": "security-review.md catching all seeded flaws: unverified JWT, BOLA on GET /orders/{id}, mass assignment via PATCH /users/me (role, plus SQL injection via field names), password_hash/stripe id exposure, SSRF in webhook test, unbounded limit, admin key in query string with == compare, hardcoded secrets, CORS * with credentials, traceback in errors — ranked by severity with exploits and fixes",
+      "files": [
+        "vulnerable-orders-api.py"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "fix-auth-and-authz",
+      "prompt": "Our pentest report says vulnerable-orders-api.py (in the current directory) has broken authentication and authorization. Fix those vulnerabilities in place: token validation, object-level access control on orders, the profile update endpoint, the user response payload, and the admin API key handling. Keep the same routes and behavior for legitimate callers. Assume RS256 tokens issued by https://auth.example.com with audience orders-api; config may come from environment variables.",
+      "expected_output": "Edited app: jwt verification enabled with pinned algorithms and iss/aud, no hardcoded secrets (env/JWKS), get_order scoped to the caller's user_id, profile update restricted to an explicit field allowlist (no role, no SQL-injected field names), password_hash and stripe_customer_id no longer returned, admin key compared constant-time from a header",
+      "files": [
+        "vulnerable-orders-api.py"
+      ]
+    }
+  ]
+}
