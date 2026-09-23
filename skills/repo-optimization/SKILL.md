@@ -49,6 +49,15 @@ where models start dropping some. Below it, inlining beats routing; above
 it, each added rule makes the existing ones less likely to be followed, so
 the overflow routes.
 
+These budgets and route rules are the **Codebase Interface spec**
+(<https://codebaseinterface.org/docs/spec/>): the AGENTS.md budgets are
+CBI-101/102, the pure `CLAUDE.md` include is CBI-103, explicit routes are
+CBI-201..203, the Taskfile and tooling rules are CBI-005 and CBI-301..305.
+This skill takes a repo to spec **Level 2** ("Agent-ready"); the `cbi`
+CLI (<https://github.com/codebase-interface/cli>) is the deterministic
+guard for the same rules. Cite ids when you explain a change, so the
+number lives in one place.
+
 ## Workflow
 
 Work incrementally — each step leaves the repo better even if you stop there.
@@ -227,9 +236,12 @@ contributors cannot run locally.
 ### 7. Add automated guardrail checks
 
 Apply when you built or fanned out an entry file (the budgets are what
-keep it from growing back) or centralised commands. Add stdlib-only
-scripts (invoked via the repo's runner) that keep the structure from
-regressing:
+keep it from growing back) or centralised commands. If `cbi` is
+installed, it is the guard: add a `check:cbi` task that runs
+`cbi validate` inside `check`, and write no script for a rule it already
+enforces (`cbi spec` lists them). Write stdlib-only scripts (invoked via
+the repo's runner) only where cbi is unavailable or for rules it does not
+yet cover:
 
 - **Context-size budgets**: AGENTS.md ≤ ~150 lines / ~2000 tokens;
   docs/README.md ≤ ~100 lines / ~1000 tokens; topic docs ≤ ~300 lines;
@@ -250,8 +262,9 @@ beyond the ones above.
 
 ### 8. Verify and compare — including against leaving it alone
 
-Run the repo's checks yourself before declaring done; where you cannot
-run `task`, at least confirm any `Taskfile.yml` parses as YAML (quoted
+Run the repo's checks yourself before declaring done, and `cbi validate`
+when the binary is present: report every `CBI-` id that still fails and
+why. Where you cannot run `task`, at least confirm any `Taskfile.yml` parses as YAML (quoted
 `desc:` lines, quoted `{{ }}` templates, block style) — a Taskfile that
 fails to load is worse than the Makefile it replaced. Then measure the
 agent experience against the step 1 baseline, starting from the entry

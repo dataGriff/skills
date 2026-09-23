@@ -64,10 +64,18 @@ tasks:
       - "{{.PYTHON}} scripts/pr_eval_summary.py {{.BASE}}"
 
   check:
-    desc: Run all checks (skill best practices + context size)
+    desc: Run all checks (skill best practices + context size + cbi spec validation)
     cmds:
       - task: check:skills
       - task: check:context
+      - task: check:cbi
+
+  check:cbi:
+    desc: Validate this repo against the Codebase Interface spec with cbi (skipped if not installed)
+    cmds:
+      - |
+        if command -v cbi >/dev/null 2>&1; then cbi validate; else
+          echo "check:cbi: cbi not installed - skipping (https://github.com/codebase-interface/cli)"; fi
 
   check:skills:
     desc: Validate every skill against skill best practices

@@ -5,6 +5,13 @@ format this repo already uses (`skills/<name>/SKILL.md`), so there is one
 canonical copy of every skill and everything else is a symlink. Nothing is
 duplicated; a `git pull` updates every agent at once.
 
+## Coming move
+
+`repo-optimization`, `repo-declutter`, `repo-consistency-checker` and
+`orwell-prose` will move to a `codebase-interface/skills` marketplace (see
+the [roadmap](https://codebaseinterface.org/docs/roadmap/)). Nothing
+changes for installs from this repo until then.
+
 ## In this repo (committed symlinks)
 
 Each tool discovers project skills in its own directory, so the repo carries

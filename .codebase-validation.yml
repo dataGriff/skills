@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codebase-interface/cli/main/cmd/schema/codebase-validation.schema.json
+# Codebase Interface Level 2. This repo does not use conventional commits
+# (CBI-401), so the git rule set is off until that convention is adopted.
+validation:
+  agents:
+    development-standards:
+      enabled: false

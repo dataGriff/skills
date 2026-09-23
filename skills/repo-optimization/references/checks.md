@@ -1,7 +1,21 @@
 # Guardrail checks: design and skeletons
 
-Checks exist to stop the structure regressing after you leave. Three
-families:
+Checks exist to stop the structure regressing after you leave. The
+Codebase Interface spec (<https://codebaseinterface.org/docs/spec/>) gives
+each check a stable id; `cbi validate` is the portable implementation and
+this repo's `scripts/check_context.py` the reference one. Families 1 and 2
+below map to the spec as follows:
+
+| Check                                        | Id          | cbi 0.2 |
+| -------------------------------------------- | ----------- | ------- |
+| AGENTS.md line / token budget                | CBI-101/102 | yes     |
+| `CLAUDE.md` is exactly `@AGENTS.md`          | CBI-103     | yes     |
+| README, docs/README.md, topic-doc budgets    | CBI-104..106| 0.3     |
+| every doc link in AGENTS.md is explicit      | CBI-201     | yes     |
+| every topic doc routed; links resolve        | CBI-202/203 | 0.3     |
+| mise pins, `check`/`ci` tasks, descs, hooks, CI | CBI-301..305 | 0.3  |
+
+Three families:
 
 ## 1. Context-size checks
 

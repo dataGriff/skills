@@ -30,6 +30,13 @@ local and remote can never disagree about what gets checked.
   (docs/README.md), and each topic doc, so a change that makes orientation
   dearer is visible in the run, not just when a budget finally trips.
 
+- `task check:cbi` — runs `cbi validate` (the Codebase Interface CLI,
+  <https://github.com/codebase-interface/cli>) against this repo when the
+  binary is installed, otherwise prints a skip notice. The spec ids it
+  reports are the same budgets and route rules `check_context.py`
+  enforces; `.codebase-validation.yml` turns off the git rule set because
+  this repo does not use conventional commits.
+
 Both scripts are stdlib-only python; budgets are constants at the top of
 each script. Change a budget deliberately, in the script, with a reason in
 the commit message — not by working around a failing check.

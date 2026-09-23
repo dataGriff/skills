@@ -38,7 +38,8 @@ Only when nothing existing covers the need:
 `task --list` is authoritative; the important chains are:
 
 - `setup` → `hooks:install`
-- `check` → `check:skills` + `check:context`
+- `check` → `check:skills` + `check:context` + `check:cbi` (spec validation,
+  skipped when `cbi` is absent)
 - `eval:skills` → with/without-skill effectiveness evals (on demand, not CI;
   `MODEL=` pins both arms to one model for a reproducible comparison)
 - `eval:downstream` → re-run only the downstream-task stage of an existing

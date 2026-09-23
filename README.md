@@ -8,6 +8,11 @@ Claude Code alone via `/plugin marketplace add dataGriff/skills`
 
 **Start here → [docs/README.md](docs/README.md)**
 
+The repo skills (`repo-optimization`, `repo-declutter`,
+`repo-consistency-checker`, `orwell-prose`) implement the
+[Codebase Interface](https://codebaseinterface.org) spec and are moving to
+`codebase-interface/skills`; until that repo exists they are canonical here.
+
 Quick start:
 
 ```bash

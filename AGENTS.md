@@ -26,7 +26,7 @@ doc only when its trigger in the Routes table fires.
 | Command                                      | Does                                                        |
 | -------------------------------------------- | ----------------------------------------------------------- |
 | `task setup`                                 | one-time: install the versioned git hooks                   |
-| `task check`                                 | `check:skills` + `check:context` — what hooks and CI run    |
+| `task check`                                 | `check:skills` + `check:context` + `check:cbi` — hooks and CI |
 | `task new:skill NAME=my-skill`               | scaffold `skills/my-skill/`                                 |
 | `task eval:skills NAME=x [MODEL=...]`        | with/without-skill evals via the `claude` CLI (not in CI)   |
 | `task install:skills [AGENTS=..] [SKILLS=..]`| symlink skills into `~/.claude`, `~/.codex`, `~/.copilot`   |
