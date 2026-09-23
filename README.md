@@ -22,6 +22,7 @@ task --list    # see every available command
 ```
 
 No mise (sandbox, fresh container)? `scripts/bootstrap.sh` installs `task`.
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Everything runnable lives in the [Taskfile](Taskfile.yml). For agents,
 [AGENTS.md](AGENTS.md) carries what most tasks need and routes the rest to
