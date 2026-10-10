@@ -1,0 +1,27 @@
+{
+  "skill_name": "ascii-art",
+  "allowed_tools": ["Bash(python3 *)", "Bash(python *)", "Bash(cat *)", "Bash(wc *)"],
+  "evals": [
+    {
+      "id": 0,
+      "name": "cli-banner",
+      "prompt": "Make a startup banner for my command-line tool PULSE (it tails and colours log files). I want big block letters spelling PULSE, the tagline 'watch your logs breathe' under them, and a border around the whole thing. Pure ASCII only (no Unicode), at most 70 columns wide so it fits a narrow terminal. Save it to banner.txt exactly as it should print - no markdown fences, no explanation in the file.",
+      "expected_output": "banner.txt is a rectangular framed banner: every line the same width, 70 columns or fewer, pure ASCII, no tabs; the letters are block-rendered across several rows with consistent height (not hand-drawn letters of different heights); the tagline appears intact below the letters; the frame has proper corners and nothing touches or overlaps the border",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "readme-mascot",
+      "prompt": "Draw an ASCII art owl perched on a branch as the mascot for my project 'nightwatch' (a cron monitor). It goes at the top of the README inside a code block, so: pure ASCII, between 10 and 18 rows, no wider than 40 columns, no colour. Save it to owl.txt with nothing else in the file.",
+      "expected_output": "owl.txt is an original owl: two eyes on the same row and symmetric about a centre column, a beak between/below them, a body wider than it is tall per row (terminal cells are 2:1), ear tufts or brow shoulders, a horizontal branch under it; 10-18 rows, at most 40 columns, pure ASCII, no tabs, no trailing whitespace, no stray characters outside the figure",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "image-to-ascii",
+      "prompt": "Convert scene.png (in the current directory) to ASCII art for display in a dark-background terminal. Make it exactly 60 columns wide, keep the picture's proportions, use only plain ASCII characters, and save the result to scene.txt (just the art).",
+      "expected_output": "scene.txt is 60 columns wide with a row count that preserves the image's aspect ratio for 2:1 terminal cells (roughly 20-25 rows), pure ASCII; bright regions of the image (the pale disc top-left, the red block top-right, the right end of the gradient bar) map to dense characters and the dark background to spaces or light characters - i.e. character density correlates with image luminance for a dark terminal",
+      "files": ["scene.png"]
+    }
+  ]
+}
