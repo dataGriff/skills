@@ -130,6 +130,31 @@ def grade_owl(out):
     letters = sum(1 for l in lines for c in l if c.isalpha() and c not in "oOvVwWuUxX")
     ex.append(E("No stray letters used as strokes (o/v/w/u/x allowed as features)", letters <= 4,
                 f"{letters} stray letters"))
+    # Richness: the skill's craft guidance asks for texture, limbs, a prop and
+    # use of the allowed space, not just a correct silhouette.
+    distinct = {c for l in lines for c in l if c != " "}
+    ex.append(E("Stroke variety: at least 9 distinct characters (features, texture, prop)",
+                len(distinct) >= 9, f"{len(distinct)}: {''.join(sorted(distinct))}"))
+    ex.append(E("Uses the allowed space: at least 12 rows and 24 columns",
+                len(lines) >= 12 and max(w) >= 24, f"{len(lines)} rows x {max(w)} cols"))
+
+    def interior_marks(l):
+        s = l.strip()
+        return sum(1 for c in s[1:-1] if c != " ") if len(s) > 2 else 0
+
+    detail_rows = sum(1 for l in lines if interior_marks(l) >= 2)
+    ex.append(E("Interior detail: at least 7 rows carry marks inside the outline (texture, limbs, face)",
+                detail_rows >= 7, f"{detail_rows} rows"))
+    if eye_row is not None:
+        above = lines[:lines.index(eye_row)]
+        tufts = any(len(re.findall(r"\S+", l)) >= 2 for l in above)
+        ex.append(E("Head detail above the eyes: ear tufts or brows as two separate groups", tufts,
+                    repr(above[-1]) if above else "no rows above the eyes"))
+    branch_idx = next((i for i, l in enumerate(lines) if i >= len(lines) // 2 and re.search(r"[-_=~]{6,}", l)), None)
+    if branch_idx:
+        feet_rows = lines[max(0, branch_idx - 2):branch_idx]
+        ex.append(E("Feet or talons where the body meets the branch (2+ mark groups just above it)",
+                    any(len(re.findall(r"\S+", r)) >= 2 for r in feet_rows), repr(feet_rows)))
     return ex
 
 

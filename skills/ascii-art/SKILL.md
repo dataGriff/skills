@@ -39,6 +39,9 @@ frames, curves, image conversion and measuring.
 3. **Build on a fixed grid.** Decide the width first, draw row by row, and
    keep every row within it. Terminal cells are about twice as tall as they
    are wide, so draw everything about twice as wide as it is high.
+   Silhouette first, then features, then a deliberate detail pass (texture,
+   limbs, a prop, the ground): a correct outline with an empty interior is
+   the most common way a drawing disappoints.
 4. **Verify before you show it.** When the piece is more than a few rows or
    will be committed or shipped, save it to a file and run
    `python3 scripts/asciiart.py check art.txt [--max-width N] [--unicode]`.
@@ -131,6 +134,61 @@ with the mouth centred beneath. Small changes carry the mood: `o o` neutral,
 For animals, decide the one feature that identifies the species (cat ears
 `/\_/\`, rabbit ears `(\_/)`, owl brows `{o,o}`, fish tail `><`) and build
 the rest around it.
+
+### Give it character
+
+Correct is the floor, not the goal. A clean silhouette with nothing inside
+reads as a placeholder; the pieces people keep have texture, limbs, a prop
+and a little attitude. Spend the budget you were given:
+
+- **Fill the space.** If the brief allows 18 rows and 40 columns, a 10-row
+  figure wastes it. Aim for the upper two-thirds of both limits and let the
+  figure, not the margins, carry the size.
+- **Hit the feature list.** For a creature, include at least five of: eyes,
+  brows or ear tufts, nose or beak, mouth, wings or arms, feet or paws,
+  tail, body texture, a prop or perch, ground or shadow. For an object:
+  outline, one interior detail (a button, a label, a handle), a highlight
+  or shadow side, and the surface it sits on.
+- **Texture the interior.** One texture per region, two to four rows deep:
+  feathers `v v v` or `/|||\`, fur `~` or `"`, scales `(((`, a belly patch
+  left blank inside a textured body, stripes with `=`. Leave the face
+  clean so the eyes stay the focal point.
+- **Overlap for depth.** A wing that interrupts the body line (`(` cutting
+  across `|`), a paw in front of the chest, a tail curling past the hip:
+  overlaps make a flat drawing solid. Draw the near part last so it wins.
+- **Anchor it.** A perch, a mug, a keyboard, a moon, a ground line, a
+  shadow of `"` or `.` under the feet. A subject floating in white space
+  looks unfinished.
+- **Count your strokes.** A rich piece uses ten or more distinct
+  characters; if you count six, add texture or a prop before calling it
+  done. Vary within the family (`o`, `O`, `0` for eyes of different sizes;
+  `-`, `=`, `~` for different weights of horizontal).
+- **Use character, not text.** A name or caption under a mascot is text,
+  not art, and nobody asked for it; leave labels out unless the brief
+  includes them. Expression and props do the characterising.
+
+Plain and finished versions of the same brief:
+
+```text
+   /\_/\             /\_________/\
+  ( o.o )           /  .-.     .-.  \
+   > ^ <           |  ( o )   ( o )  |
+                   | ==  '-'^'-'  == |
+                    \     '---'     /
+                    /'-.         .-'\
+                   /  (  '-----'  )  \
+                  |   /  /     \  \   |
+                  |   | |       | |   |
+                   \  (_)       (_)  /
+                    '-.___________.-'
+                   ~ ~     ~ ~     ~ ~
+```
+
+Same ears, same eyes, same mouth. The right-hand cat adds brows, whiskers,
+a chin, forelegs that overlap the body, paws and a ground texture, and uses
+the width it was allowed. Open `references/gallery.md` and look at "Same
+subject, three sizes" when you need to see how detail should scale with
+the box.
 
 ## Banners and lettering
 

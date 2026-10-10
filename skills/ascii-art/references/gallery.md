@@ -11,6 +11,7 @@ original to this skill, so they can be used without attribution.
 - Animals
 - Plants and landscape
 - Objects and vehicles
+- Same subject, three sizes
 - Diagrams, charts and dividers
 - Composing a scene
 - Animation in the terminal
@@ -136,6 +137,36 @@ from the body's bottom corner.
   [_] |_|_| [_]
      robot
 ```
+
+## Same subject, three sizes
+
+Detail must scale with the box. A 3-row sprite is all silhouette; at 7 rows
+the face and a body appear; at 14 rows the brief expects texture, limbs
+that overlap, a prop and ground. Draw the version the space asks for, not
+the smallest one that is recognisable.
+
+```text
+small (3 rows)      medium (7 rows)         large (14 rows)
+
+   /\_/\             /\_____/\             /\_________________/\
+  ( o.o )           /  o   o  \           /   .---.       .---.   \
+   > ^ <           ( ==  ^  == )         |   ( o  )     (  o )   |
+                    )  '---'  (          | ===  '-'   ^   '-'  === |
+                   (  /     \  )          \       '-----'        /
+                    \_)_____(_/           /'-.                 .-'\
+                                         /    '-._  _____  _.-'    \
+                                        |  /     (  '---'  )     \  |
+                                        | |  ~~~  |  ~~~  |  ~~~  | |
+                                        | |       |       |       | |
+                                         \ \_____/ \_____/ \_____/ /
+                                          (__)    (__)   (__)    (__)
+                                     ~~  '--------------------------'  ~~
+                                           "  "    "   "    "  "
+```
+
+The large cat spends its extra rows on brows, whisker weight, a textured
+chest with a blank belly patch, forelegs that overlap the body outline,
+paws, a base and ground marks. Its face stays clean so the eyes still win.
 
 ## Diagrams, charts and dividers
 
