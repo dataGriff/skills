@@ -108,24 +108,24 @@ def grade_owl(out):
     w = widths(lines)
     ex.append(E("Figure is wider than it is tall in cells (2:1 aspect compensation)",
                 max(w) >= len(lines) * 1.2, f"{max(w)} cols x {len(lines)} rows"))
-    # Eyes: two eye-like glyphs on one row, symmetric about the row's figure centre.
-    eye = re.compile(r"[oO0@*]")
+    # Eyes: two eye-like glyph groups (`o`, `(O)`, `@@`, `(o,o)` halves...) on
+    # one row, symmetric about the row's figure centre.
+    eye = re.compile(r"[oO0@*]+")
     eye_row = None
     for l in lines[:10]:
-        pos = [m.start() for m in eye.finditer(l)]
-        if len(pos) == 2 and 2 <= pos[1] - pos[0] <= 14:
-            s = l.strip()
+        groups = [(m.start() + m.end() - 1) / 2 for m in eye.finditer(l)]
+        if len(groups) == 2 and 2 <= groups[1] - groups[0] <= 16:
             left, right = len(l) - len(l.lstrip()), len(l.rstrip()) - 1
             centre = (left + right) / 2
-            if abs((pos[0] + pos[1]) / 2 - centre) <= 1.0:
+            if abs((groups[0] + groups[1]) / 2 - centre) <= 1.0:
                 eye_row = l
                 break
     ex.append(E("Two eyes on one row, symmetric about the figure's centre", eye_row is not None,
                 repr(eye_row)))
     ex.append(E("A branch: a horizontal run of 6+ line characters in the lower half",
                 any(re.search(r"[-_=~]{6,}", l) for l in lines[len(lines) // 2:]), "grep lower rows"))
-    ex.append(E("Beak or face mark below the eyes (v, V, ^, >, <, or similar)",
-                eye_row is None or any(re.search(r"[vV^><]", l) for l in lines[lines.index(eye_row) + 1: lines.index(eye_row) + 4]),
+    ex.append(E("Beak or face mark below the eyes (v, V, ^, >, <, \\/ or similar)",
+                eye_row is None or any(re.search(r"[vV^><]|\\/", l) for l in lines[lines.index(eye_row) + 1: lines.index(eye_row) + 4]),
                 "grep rows after eyes"))
     letters = sum(1 for l in lines for c in l if c.isalpha() and c not in "oOvVwWuUxX")
     ex.append(E("No stray letters used as strokes (o/v/w/u/x allowed as features)", letters <= 4,
@@ -229,7 +229,12 @@ def grade_image(out):
         return ex
     lum = read_png_luminance(png)
     ih, iw = len(lum), len(lum[0])
-    rows, cols = len(lines), max(w)
+    # Map output cells onto the image through the row count a 2:1 grid at
+    # this width implies, top-aligned, so a converter that trimmed trailing
+    # blank rows is not punished with a vertical stretch.
+    cols = max(w)
+    rows = max(len(lines), round(ih * cols / iw * 0.5))
+    lines = lines + [""] * (rows - len(lines))
     dens, src = [], []
     for y, l in enumerate(lines):
         l = l.ljust(cols)
