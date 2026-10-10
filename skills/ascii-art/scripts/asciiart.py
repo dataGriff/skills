@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import re
 import shutil
 import subprocess
 import sys
@@ -50,8 +51,24 @@ def char_cells(ch: str) -> int:
     return 1
 
 
+# ANSI escape sequences occupy no cells: CSI (colours, cursor moves) and
+# OSC (titles, hyperlinks) are recognised and skipped when measuring.
+ANSI_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
+
+
+def strip_ansi(s: str) -> str:
+    return ANSI_PATTERN.sub("", s)
+
+
 def display_width(s: str) -> int:
-    return sum(char_cells(c) for c in s)
+    """Terminal cells a string occupies; ANSI escape sequences count as zero."""
+    return sum(char_cells(c) for c in strip_ansi(s))
+
+
+def control_chars(s: str) -> list[str]:
+    """C0/C1 control characters left after removing recognised ANSI sequences
+    and tabs (which are reported separately)."""
+    return [c for c in strip_ansi(s) if unicodedata.category(c) == "Cc" and c not in "\t\n"]
 
 
 def is_ambiguous(ch: str) -> bool:
@@ -77,12 +94,21 @@ def lint(text: str, max_width: int = 80, allow_unicode: bool = False) -> tuple[l
     unsafe: dict[str, list[int]] = {}
     ambiguous = 0
     non_ascii = 0
-    for n, line in enumerate(lines, 1):
+    escapes = 0
+    for n, raw in enumerate(lines, 1):
+        line = strip_ansi(raw)
+        escapes += len(ANSI_PATTERN.findall(raw))
         if "\t" in line:
             errors.append(f"line {n}: TAB character - expands differently everywhere; use spaces")
+        stray = control_chars(line)
+        if stray:
+            errors.append(f"line {n}: control character(s) {', '.join(f'U+{ord(c):04X}' for c in stray[:4])} "
+                          "- not a recognised ANSI sequence; terminals render these unpredictably")
         if line != line.rstrip():
             notes.append(f"line {n}: trailing whitespace (invisible, breaks diffs; trim it)")
         for ch in line:
+            if ch in "\t\n" or unicodedata.category(ch) == "Cc":
+                continue
             if ord(ch) > 0x7F:
                 non_ascii += 1
             cells = char_cells(ch)
@@ -99,6 +125,10 @@ def lint(text: str, max_width: int = 80, allow_unicode: bool = False) -> tuple[l
         errors.append(
             f"{non_ascii} non-ASCII character(s) but pure ASCII was requested "
             "(pass --unicode if box-drawing / block characters are intended)")
+    if escapes:
+        notes.append(
+            f"{escapes} ANSI escape sequence(s) ignored for width: colour output is for live "
+            "terminals only, not for files, READMEs or code comments")
     if ambiguous:
         notes.append(
             f"{ambiguous} ambiguous-width character(s) (box drawing, block elements): "
@@ -482,7 +512,7 @@ def mirror(text: str, append: bool = False, overlap: bool = False) -> str:
     """Flip art horizontally. append=True glues the flipped copy to the right
     of the original (draw a left half, get a symmetric whole); overlap=True
     shares the centre column."""
-    lines = text.rstrip("\n").split("\n")
+    lines = [strip_ansi(l) for l in text.rstrip("\n").split("\n")]  # escapes cannot be reversed
     width = max(display_width(l) for l in lines)
     out = []
     for l in lines:
@@ -580,11 +610,10 @@ def image_to_text(path: str, width: int = 80, height: int | None = None, mode: s
     if mode == "ramp":
         idx = _dither(lum, len(chars)) if dither else [[round(v * (len(chars) - 1)) for v in row] for row in lum]
         for y, row in enumerate(idx):
-            parts = []
-            for x, q in enumerate(row):
-                ch = chars[min(q, len(chars) - 1)]
-                parts.append((_fg(img.getpixel((x, y))) + ch) if color else ch)
-            out_lines.append("".join(parts).rstrip() + (ANSI_RESET if color else ""))
+            plain = "".join(chars[min(q, len(chars) - 1)] for q in row).rstrip()
+            if color:
+                plain = "".join(_fg(img.getpixel((x, y))) + ch for x, ch in enumerate(plain)) + ANSI_RESET
+            out_lines.append(plain)
     elif mode == "half":
         for y in range(0, img.height - 1, 2):
             parts = []
@@ -697,7 +726,7 @@ def main(argv: list[str] | None = None) -> int:
         errors, notes, stats = lint(text, a.max_width, a.unicode)
         if a.ruler:
             print(ruler(max(stats["max_width"], 10)))
-            print(text.rstrip("\n"))
+            print(strip_ansi(text).rstrip("\n"))
             print()
         print(f"{stats['lines']} lines, widths {stats['min_width']}..{stats['max_width']} (limit {a.max_width})")
         for e in errors:

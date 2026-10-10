@@ -238,13 +238,14 @@ ______________________________|_|__|__|__________________________
 
 ```python
 import sys, time
-frames = ["( o.o )", "( -.- )", "( o.o )", "( o.o )", "( o.o )"]
+open_eyes, blink = "( o.o )", "( -.- )"
+frames = [open_eyes] * 20 + [blink] * 2   # 22 frames at 12 fps: a blink every ~2 s
 sys.stdout.write("\x1b[?25l")
 try:
     for f in frames * 3:
         sys.stdout.write("\r" + f)
         sys.stdout.flush()
-        time.sleep(0.25)
+        time.sleep(0.08)
 finally:
     sys.stdout.write("\x1b[?25h\n")
 ```

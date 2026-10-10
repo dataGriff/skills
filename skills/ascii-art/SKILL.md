@@ -166,7 +166,8 @@ with aspect correction and auto-contrast, when Pillow is importable.
   result; `--mode half --color` gives two colour pixels per cell with
   ANSI truecolor and is the best-looking option for a live terminal.
 - Colour output is for terminals only: it is escape codes, so never put it
-  in a file meant for a README or a code comment. Strip it with
+  in a file meant for a README or a code comment. The linter measures
+  through them and reports how many it ignored; strip them with
   `sed 's/\x1b\[[0-9;]*m//g'` if a plain copy is needed.
 - Photos need subjects with strong silhouettes; a busy image at 80 columns
   is mush. Crop to the subject first, or raise the width and tell the user
