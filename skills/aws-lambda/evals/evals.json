@@ -1,0 +1,22 @@
+{
+  "skill_name": "aws-lambda",
+  "evals": [
+    {
+      "id": 0,
+      "name": "build-sqs-worker",
+      "prompt": "We need a serverless worker on AWS that processes order messages. Build an AWS Lambda function in Python that consumes messages from an SQS queue (each message body is JSON like {\"orderId\": \"o-123\", \"amount\": 4200}) and records each order in a DynamoDB table named by an environment variable. It must be production-ready: messages can be redelivered, some messages in a batch may be malformed, and poisoned messages must not be able to block processing forever. Define all the infrastructure (function, queue, table, permissions) as a SAM template saved as template.yaml, with the handler code saved as src/app.py.",
+      "expected_output": "SAM template on a current python runtime with explicit timeout, least-privilege policies, queue redrive to a DLQ, and ReportBatchItemFailures; handler with module-scope boto3 init, per-record try/except returning batchItemFailures, idempotent write keyed on orderId",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-legacy-lambda",
+      "prompt": "A contractor built this Lambda-based SQS consumer (legacy-handler.py and legacy-template.yaml, in the current directory) and it's now misbehaving in production: it's slow, messages disappear when processing fails, and security flagged the stack. Review both files, write a review.md listing every problem you find, and save fixed versions as handler.py and template.yaml (same behaviour: consume order messages from the queue, write them to the DynamoDB table).",
+      "expected_output": "Review catching the per-invocation client creation, deprecated runtime, AdministratorAccess role, hardcoded credential, swallowed batch errors with no partial-failure reporting, and missing DLQ; fixed files correcting all of them",
+      "files": [
+        "legacy-handler.py",
+        "legacy-template.yaml"
+      ]
+    }
+  ]
+}

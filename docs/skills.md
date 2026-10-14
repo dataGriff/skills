@@ -34,6 +34,18 @@ different context cost:
   AND when to use it, explicitly ("Use when the user…"). Claude tends to
   under-trigger skills, so be a little pushy: enumerate the phrases and
   situations that should trigger it. Max 1024 characters.
+- `allowed-tools` (optional) — consider it for a skill that drives a CLI:
+  `allowed-tools: Bash(datacontract *)` spares the user a permission prompt
+  every time the skill runs its tool. Grant only the wrapped tool's own
+  binary, never general-purpose commands (`docker`, `curl`, `aws`) — the
+  grant applies whenever the skill is active, so a broad one hands out
+  approval far beyond what the skill needs.
+- Other optional fields exist but think before adding: only `name`,
+  `description`, `license`, `compatibility`, `metadata`, and `allowed-tools`
+  are portable to claude.ai/Skills-API distribution — Claude-Code-only
+  fields (`when_to_use`, `context`, `model`, `hooks`, …) error there, and
+  most don't fit knowledge/authoring skills anyway. Add `license` if we
+  ever publish these.
 
 ## Writing style
 

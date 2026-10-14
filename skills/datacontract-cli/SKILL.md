@@ -12,6 +12,7 @@ description: >-
   generate a contract from an existing database or schema, or automate
   contract checks in a pipeline. Pairs with the odcs-authoring skill for
   writing the contract content itself.
+allowed-tools: Bash(datacontract *)
 ---
 
 # Data Contract CLI
