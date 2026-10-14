@@ -1,0 +1,27 @@
+{
+  "skill_name": "terraform",
+  "allowed_tools": ["Bash(terraform *)"],
+  "evals": [
+    {
+      "id": 0,
+      "name": "author-log-bucket-module",
+      "prompt": "We're standardising how teams create S3 log buckets. Write a reusable Terraform module, in the current directory, that creates an AWS S3 bucket for application logs. Requirements: the bucket name is built from project and environment inputs, and environment must be one of dev, test, prod; versioning enabled; server-side encryption, with an optional customer-managed KMS key; a lifecycle rule expiring logs after a configurable number of days (default 90); the bucket must be protected against accidental deletion; everything tagged with project and environment. Expose the bucket name and ARN as outputs. Other teams will consume this module, so structure it properly.",
+      "expected_output": "fmt-clean module: pinned terraform/provider versions, typed+described variables with environment validation, prevent_destroy, no provider block, described outputs",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "review-legacy-config",
+      "prompt": "An old project's Terraform config is in legacy-main.tf in the current directory. Review it against Terraform best practices: write a review.md listing everything wrong with it, then write a corrected version of the configuration to fixed/main.tf (plus any other files you think the fixed layout needs under fixed/). Assume the infrastructure it describes must keep existing.",
+      "expected_output": "review.md flagging hardcoded credentials, secret default, unpinned versions, count/index fragility, hardcoded AMI, local state; fixed config with those repaired",
+      "files": ["legacy-main.tf"]
+    },
+    {
+      "id": 2,
+      "name": "refactor-adopt-backend",
+      "prompt": "refactor-main.tf in the current directory is a small root module whose state currently lives locally, and there's a change request against it. 1) Rename the aws_s3_bucket.data resource to aws_s3_bucket.artifacts — the bucket is full of production data and absolutely must not be destroyed or recreated. 2) The team also has a bucket called acme-logs-archive that was clicked together in the console; bring it under management in this config as aws_s3_bucket.logs_archive, same no-recreate rule. 3) Move state to our shared S3 bucket acme-tfstate (region eu-west-1, key platform/app.tfstate) with state locking enabled. You can't reach AWS from here, so express everything as config changes a reviewer can see in a plan, and write a short notes.md saying what will happen on the next plan/apply and any commands the operator must run.",
+      "expected_output": "moved block for the rename, import block (id acme-logs-archive) with a resource block, s3 backend with use_lockfile (no DynamoDB), notes.md explaining init -migrate-state and the no-op plan",
+      "files": ["refactor-main.tf"]
+    }
+  ]
+}
