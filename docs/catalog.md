@@ -1,6 +1,6 @@
 # Skill catalog
 
-Seventeen skills in five families. You do not run them by hand: an agent
+Sixteen skills in five families. You do not run them by hand: an agent
 picks a skill when your request matches its description, so ask for the
 outcome ("write an OpenAPI spec for orders", "Dave is leaving, what do we
 need from him?"). Most tasks need one skill. Families exist because some
@@ -41,13 +41,13 @@ uninstalling.
 |---|---|
 | `openapi-authoring` | writing, reviewing or upgrading a REST API spec (OpenAPI/Swagger) |
 | `asyncapi-authoring` | describing events, topics or queues (AsyncAPI), or migrating 2.x to 3.x |
-| `api-mocking-microcks` | you need a mock API, fake endpoints or sample events for development or consumer tests |
-| `contract-testing-microcks` | checking that a running implementation conforms to its spec, locally or in CI |
+| `microcks` | you need a mock API, fake endpoints or sample events, or to check a running implementation conforms to its spec |
 | `api-security` | reviewing or designing an API against the OWASP API Top 10, or fixing an auth bug |
 
-In order: write the spec (OpenAPI or AsyncAPI) with examples, mock it so
-consumers can start, contract-test the implementation against it, and
-review its security before release. Each step works alone on an existing
+In order: write the spec (OpenAPI or AsyncAPI) with examples, mock it with
+`microcks` so consumers can start, contract-test the implementation with
+`microcks` against the same examples, and review its security before
+release. Each step works alone on an existing
 spec.
 
 ## Data contracts — `GROUP=data`

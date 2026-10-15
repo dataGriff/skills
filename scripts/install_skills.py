@@ -14,6 +14,10 @@ one symlink per skill (``~/.claude/skills/<name> -> <repo>/skills/<name>``).
 A ``git pull`` in the clone updates every agent at once, and skills from
 other sources can coexist alongside ours.
 
+Links of ours whose skill no longer exists (renamed, merged or removed)
+are pruned on install, so re-running after a pull leaves no dangling
+entries.
+
 Safety rules:
 - never touch an entry we didn't create: anything that is not a symlink
   into this repo's ``skills/`` is skipped with a warning;
@@ -85,6 +89,10 @@ def install(agents: list[str], skills: list[str] | None) -> tuple[int, int]:
                 errors += 1
                 continue
             print(f"ok    {link} -> {skill}")
+        for link in sorted(target_dir.iterdir()):
+            if points_into_repo(link) and not link.exists():
+                link.unlink()  # its skill was renamed, merged or removed
+                print(f"pruned {link} (skill no longer exists)")
     return warnings, errors
 
 

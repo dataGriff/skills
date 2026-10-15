@@ -31,7 +31,7 @@ task install:skills AGENTS=claude      # or a subset of agents
 task install:skills GROUP=repo         # or one family (see catalog.md)
 task install:skills SKILLS=odcs-authoring,datacontract-cli   # or of skills
 task uninstall:skills                  # remove our symlinks, nothing else
-task uninstall:skills SKILLS=api-mocking-microcks            # just one
+task uninstall:skills SKILLS=microcks                       # just one
 ```
 
 `GROUP=` takes the family names defined in [catalog.md](catalog.md)
@@ -74,3 +74,6 @@ the symlink installs above. After editing the manifest, check it with
   errors out per-entry instead of installing. WSL works out of the box.
 - **Moved clone**: re-run `task install:skills` after moving the clone —
   it re-points stale links automatically.
+- **Renamed or removed skills**: `task install:skills` also deletes our
+  links whose skill no longer exists in the clone (for example after two
+  skills merge), so re-running it after a pull keeps the agent dirs clean.

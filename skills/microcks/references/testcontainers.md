@@ -1,4 +1,4 @@
-# Contract testing with Microcks Testcontainers modules
+# Microcks Testcontainers modules: mocks and contract tests
 
 Each module starts a throwaway Microcks (the single-container
 `quay.io/microcks/microcks-uber` image — pin a version tag, e.g.
@@ -9,20 +9,28 @@ drift; Java is the most feature-complete (webhooks, all async protocols).
 Known gaps: Node and .NET lack webhook registration, Go lacks WebSocket
 async, .NET lacks MQTT/SQS/SNS/PubSub, none support NATS.
 
+## Contents
+
+- The pattern (any language)
+- Java, Node/TypeScript, Go, .NET
+- Ensemble: Postman runner and async APIs
+
 ## The pattern (any language)
 
 1. Start `MicrocksContainer` with the spec as a main artifact (secondary
    artifacts add Postman collections / extra examples).
 2. Consumer tests: point the client at
    `getRestMockEndpoint(name, version)` (or the soap/graphql/grpc
-   equivalent). Optionally assert the mock was hit with
-   `verify(name, version)` / `getServiceInvocationsCount(...)`.
+   equivalent) — inject it, never hand-build a URL or port. Optionally
+   assert the mock was hit with `verify(name, version)` /
+   `getServiceInvocationsCount(...)`.
 3. Provider tests: start the app under test, then submit a test request —
    service id `"Name:version"`, runner type, `testEndpoint` reaching the
    app. When the app runs on the host, expose it and use
    `host.testcontainers.internal:<port>`.
 4. Assert on the result's success flag; failure messages list the
-   per-operation violations.
+   per-operation violations, and `getMessagesForTestCase(...)` shows what
+   was exchanged.
 
 ## Java — `io.github.microcks:microcks-testcontainers` (0.5.x)
 
