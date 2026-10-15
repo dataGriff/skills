@@ -35,5 +35,16 @@ the arms.
   baseline writes straight away (2-6 turns). The reads are the ones the
   skill tells it to make for these tasks, so this is the price of the
   guidance, not an unconditional load.
-- **Not yet known:** whether the merge or the model change explains the
-  difference from the pre-merge results (recorded on claude-sonnet-5).
+- **The model, not the merge, closed the gap.** Re-running both pre-merge
+  skills (commit 11d059f) on claude-sonnet-5-5 gave ties on every eval
+  too: `api-mocking-microcks` 29/29 against 29/29 at 2.01x tokens,
+  `contract-testing-microcks` 11/11 against 11/11 at 1.59x. Per eval the
+  merged skill costs the same within a cent ($0.13-0.15), except the CI
+  gate (7 turns against 5, $0.15 against $0.11), where it now reads the
+  merged `automation.md`.
+- **What this means.** On this model the graders mostly measure nothing:
+  the baseline already knows JSON_BODY rules, overlays and runner ids. The
+  skill's remaining value is the facts a model gets wrong silently; the
+  next eval change should grade those (the 1.x `microcks` binary, Keycloak
+  flags only together, `--insecure-tls`, `async-addon.yml`, the 0.5.x CLI
+  inside the GitHub Actions) or the skill should be slimmed to them.
