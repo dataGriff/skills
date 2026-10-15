@@ -1,16 +1,15 @@
 ---
 name: api-mocking-microcks
 description: >-
-  Mock and contract-test REST (OpenAPI) and event-driven (AsyncAPI) APIs with
-  Microcks (microcks.io): spin up a local mock server, author specs whose
-  examples become live mocks, dispatch different responses per request, mock
-  Kafka/WebSocket/MQTT events, and wire mocks into tests and CI with
-  Testcontainers or microcks-cli. Use when the user mentions Microcks, wants
-  to mock an API or simulate a backend/broker from an OpenAPI or AsyncAPI
-  spec, needs fake endpoints or sample events for local development or
-  integration tests, or wants contract testing of an implementation against
-  its spec. Also use when adding examples/x-microcks extensions to a spec so
-  it mocks well.
+  Mock REST (OpenAPI) and event-driven (AsyncAPI) APIs with Microcks: run
+  a local mock server, author spec examples that become live mocks,
+  dispatch responses per request, mock Kafka/WebSocket/MQTT events, and
+  use the mocks in development and consumer tests via Testcontainers or
+  microcks-cli. Use when the user wants to mock an API or simulate a
+  backend or broker from a spec, needs fake endpoints or sample events, or
+  is adding examples or x-microcks extensions so a spec mocks well.
+  Verifying an implementation against its spec is
+  contract-testing-microcks.
 ---
 
 # API mocking with Microcks

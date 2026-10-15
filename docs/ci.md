@@ -16,7 +16,7 @@ local and remote can never disagree about what gets checked.
   frontmatter validity, name/directory match, description states capability
   then trigger context, 500-line SKILL.md budget, referenced files exist,
   no orphaned bundled files, reference-doc links resolve, ToCs on large
-  references, and (warning) SKILL.md text that loads a bundled file on
+  references, every skill in exactly one `docs/catalog.md` family, and (warning) SKILL.md text that loads a bundled file on
   every use — unconditional cue phrasing, or a read inside a numbered
   workflow step with no stated condition. See the cost-discipline rules in
   [skills.md](skills.md).

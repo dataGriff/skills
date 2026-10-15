@@ -6,6 +6,10 @@ Skills live in `skills/<name>/` with a required `SKILL.md`. Scaffold one with:
 task new:skill NAME=my-skill
 ```
 
+Then add it to its family in [catalog.md](catalog.md) (`task check:skills`
+fails until you do), and name its closest neighbours in its "when not to
+use" section so each skill hands off instead of overlapping.
+
 ## Anatomy
 
 ```

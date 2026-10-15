@@ -20,9 +20,10 @@ Safety rules:
 - ``--uninstall`` removes only symlinks that point into this repo.
 
 ``--skills`` narrows either operation to a comma-separated subset of skill
-names, so a machine or project can install only the group it needs — every
-installed skill's metadata is loaded into every conversation, so installing
-less costs less. Default is all skills.
+names, and ``--groups`` to whole families as defined in docs/catalog.md,
+so a machine or project can install only what it needs — every installed
+skill's metadata is loaded into every conversation, so installing less
+costs less. The two combine; default is all skills.
 
 Run via ``task install:skills`` / ``task uninstall:skills``.
 """
@@ -32,6 +33,8 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+
+from catalog import groups as catalog_groups
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
@@ -112,6 +115,11 @@ def main() -> int:
         default="",
         help="comma-separated subset of skill names (default: all skills)",
     )
+    parser.add_argument(
+        "--groups",
+        default="",
+        help="comma-separated skill families from docs/catalog.md, e.g. repo,api",
+    )
     args = parser.parse_args()
 
     agents = [a.strip() for a in args.agents.split(",") if a.strip()]
@@ -120,7 +128,15 @@ def main() -> int:
         print(f"unknown agent(s): {', '.join(unknown)}", file=sys.stderr)
         return 1
 
-    skills = [s.strip() for s in args.skills.split(",") if s.strip()] or None
+    skills = [s.strip() for s in args.skills.split(",") if s.strip()]
+    families = catalog_groups()
+    for group in (g.strip() for g in args.groups.split(",") if g.strip()):
+        if group not in families:
+            print(f"unknown group: {group}", file=sys.stderr)
+            print(f"available: {', '.join(sorted(families))}", file=sys.stderr)
+            return 1
+        skills += families[group]
+    skills = skills or None
     if skills is not None:
         known = {d.name for d in repo_skills()}
         unknown_skills = [s for s in skills if s not in known]

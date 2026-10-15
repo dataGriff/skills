@@ -6,7 +6,11 @@ committed symlinks, everywhere else via `task install:skills`, and for
 Claude Code alone via `/plugin marketplace add dataGriff/skills`
 ([docs/install.md](docs/install.md)).
 
-**Start here → [docs/README.md](docs/README.md)**
+**Using the skills?** When you want to pick a skill, see how they combine,
+or install one family, read [docs/catalog.md](docs/catalog.md) — every
+skill by family, with when to use it.
+
+**Working on this repo?** Start at [docs/README.md](docs/README.md).
 
 Quick start:
 

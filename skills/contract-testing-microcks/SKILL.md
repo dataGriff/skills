@@ -1,15 +1,15 @@
 ---
 name: contract-testing-microcks
 description: >-
-  Run API contract testing with Microcks (microcks.io): turn OpenAPI,
-  AsyncAPI, gRPC/Protobuf, GraphQL, Postman or SoapUI artifacts into live
-  mocks, then verify a running implementation conforms to its contract using
-  Microcks test runners — locally via Testcontainers or docker compose, and
-  in CI via the microcks CLI or GitHub Action. Use when the user mentions
-  Microcks, contract testing, conformance testing, provider contract tests,
-  validating an API implementation against its spec, mocking an API from its
-  spec for consumer tests, or wiring contract checks into a pipeline. Pairs
-  with openapi-authoring / asyncapi-authoring for writing the spec itself.
+  Verify that a running API implementation conforms to its contract with
+  Microcks test runners: import OpenAPI, AsyncAPI, gRPC, GraphQL, Postman
+  or SoapUI artifacts and run provider conformance tests locally
+  (Testcontainers, docker compose) and in CI (microcks CLI, GitHub
+  Action). Use when the user mentions contract, conformance or provider
+  testing, wants to validate an implementation against its spec, or wants
+  contract checks in a pipeline. Mocking an API for development is
+  api-mocking-microcks; writing the spec is openapi-authoring or
+  asyncapi-authoring.
 ---
 
 # Contract testing with Microcks
