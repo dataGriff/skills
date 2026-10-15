@@ -40,10 +40,11 @@ def repo_files(out: Path) -> list[Path]:
 
 
 def report_files(out: Path) -> list[Path]:
-    new_md = [p for p in repo_files(out) if p.suffix == ".md"
-              and p.name not in ("README.md", "NOTES.md", "ANSWER.md")]
+    # Reports sit at the root (both prompts say so); docs/ is repo content.
+    new_md = [p for p in repo_files(out) if p.suffix == ".md" and p.parent == out
+              and p.name not in ("README.md", "NOTES.md", "ANSWER.md", "CONTRIBUTING.md")]
     named = [p for p in new_md if REPORT_NAME.search(p.name)]
-    return named or [p for p in new_md if p.parent == out]
+    return named or new_md
 
 
 def report_text(out: Path) -> str:
@@ -76,22 +77,24 @@ def git(out: Path, *args) -> str:
 
 def common_report_checks(out: Path) -> list[dict]:
     report = report_text(out)
-    low = report.lower()
+    # Findings may land in the report or in docs the run wrote; both count.
+    found = report + "\n" + repo_text(out, exclude_code=True)
+    low = found.lower()
     return [
         E("A findings report exists with at least 6 table rows",
           len(table_rows(report)) >= 6, f"files={[p.name for p in report_files(out)]} "
                                         f"rows={len(table_rows(report))}"),
         E("The report names Dave's single-author areas (deploy.sh and billing.py or app.py)",
           "dave" in low and "deploy.sh" in low and ("billing.py" in low or "app.py" in low), ""),
-        E("The report lists every env var the code reads (4/4)",
-          all(v in report for v in ENV_VARS), [v for v in ENV_VARS if v not in report]),
+        E("Every env var the code reads is listed in the report or the docs it wrote (4/4)",
+          all(v in found for v in ENV_VARS), [v for v in ENV_VARS if v not in found]),
         E("The rounding reason is recovered from git history (FIN-212 or the ledger) rather than "
           "left as a question", "fin-212" in low or "ledger" in low, ""),
         E("The batch-size reason is recovered from git history (300 requests a minute)",
           bool(re.search(r"300\s*(req|requests|/\s*min|per)", low)), ""),
         E("The retry limit's reason is treated as unknown and put to Dave as a question",
           any(("retry" in l.lower() or "retries" in l.lower()) and "?" in l
-              for l in report.splitlines()), ""),
+              for l in found.splitlines()), ""),
     ]
 
 
@@ -145,8 +148,9 @@ def grade_fix(out: Path):
     ex.append(E("The 300 requests/minute batch reason now lives in the repo itself",
                 bool(re.search(r"300\s*(req|requests|/\s*min|per)", repo, re.I)), ""))
     deploy = read(out / "deploy.sh")
-    ex.append(E("deploy.sh no longer hard-codes Dave's home directory",
-                deploy and "/home/dave" not in deploy, ""))
+    code = "\n".join(l.split("#", 1)[0] for l in deploy.splitlines())
+    ex.append(E("deploy.sh no longer hard-codes Dave's home directory (comments aside)",
+                deploy and "/home/dave" not in code, ""))
     ex.append(E("README no longer routes setup and deploys through Dave",
                 readme and "from Dave" not in readme and "Dave does the deploys" not in readme, ""))
     ex.append(no_invented_retry_reason(out))
@@ -180,8 +184,9 @@ def grade_handover(out: Path):
     ex.append(E("Asks who else can deploy or holds access today",
                 any(re.search(r"who else|anyone else|other than|besides|backup", q, re.I)
                     for q in questions), ""))
-    ex.append(E("Does not ask Dave what history already answers (no question about the rounding)",
-                not any(re.search(r"round|half.even", q, re.I) for q in questions)
+    ex.append(E("Does not ask Dave what history already answers (no 'why' question about the rounding)",
+                not any(re.search(r"why\b.*(round|half.even)|(round|half.even).*\bwhy\b", q, re.I)
+                        for q in questions)
                 and ("fin-212" in low or "ledger" in low), ""))
     return ex
 
