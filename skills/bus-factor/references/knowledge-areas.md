@@ -1,0 +1,136 @@
+# Knowledge areas: what a newcomer needs per stage
+
+One section per stage of the newcomer walk. Each gives what "answered"
+looks like, the signals that the stage fails, and the encodings that hold
+up best, most executable first.
+
+## Purpose
+
+**Answered:** the README's first screen says what the system does, who
+uses it, and what it deliberately does not do. A newcomer can say in one
+sentence whether a feature request belongs here.
+
+**Failing:** the README opens with install steps; the name is the only
+description; scope lives in a product wiki; "see the deck".
+
+**Encode as:** two or three README sentences; an explicit "out of scope"
+line when people keep asking for the same thing. Write only what the code
+and docs show the system does. Who the users are and why it exists may be
+person-sourced; put them in the questions list if the repo is silent.
+
+## Setup
+
+**Answered:** from a clean machine, the documented steps produce a working
+environment with no extra installs, and every config value has a known
+source.
+
+**Failing:** no version pin, or a pin in prose only; a dependency
+installed globally on the author's machine; "get the `.env` from X";
+setup that works only on one OS without saying so; a step that needs an
+account nobody says how to get.
+
+**Encode as:**
+- a pin file for each toolchain (`mise.toml`, `.tool-versions`,
+  `.python-version`, `.nvmrc`, `rust-toolchain.toml`, `global.json`),
+  derived from what CI, the lockfile or the manifest already require;
+- a single bootstrap command (`task setup`, `make setup`) when there is
+  more than one step;
+- `.env.example` listing every variable the code reads, with a one-line
+  meaning, the default if the code has one, and the source for real
+  values (vault path, SSM parameter, CI secret name). Derive the list from
+  the code; the scan prints it;
+- an "Access" section naming each system a contributor needs and the role
+  or team that grants it. If the repo does not say who grants it, that is
+  a question, not a guess.
+
+## Build and test
+
+**Answered:** one command builds, one runs the tests, one runs the
+linters, and they are the commands CI runs. A newcomer knows what a pass
+looks like and roughly how long it takes.
+
+**Failing:** CI runs steps nobody runs locally; tests need a service the
+docs do not mention; a "known failing" test nobody explains; the test
+command lives only in CI YAML.
+
+**Encode as:** tasks or Make targets that CI calls (one definition of
+green); a test fixture or `docker compose` file for services the tests
+need; a skipped test carries its reason and ticket in the skip marker.
+
+## Change
+
+**Answered:** a newcomer can find where a given behaviour lives, follows
+the conventions without being told in review, and knows how review and
+merge work.
+
+**Failing:** conventions enforced only by one reviewer's memory; an
+architecture explained only in a talk; directory names that need a
+glossary nobody wrote; generated code edited by hand because nobody said
+how to regenerate it.
+
+**Encode as:** linters, formatters and hooks for every convention a tool
+can check, with prose only for the rest; a short layout tree with one
+line per top-level directory; a "regenerate with `task gen`" header in
+generated files; a glossary for domain terms that appear in identifiers.
+Architecture claims must come from the code (imports, entry points,
+config), not from what seems likely.
+
+## Release
+
+**Answered:** a newcomer with the right access can ship a change and roll
+it back by following the repo, and knows who is allowed to.
+
+**Failing:** "X does the deploys"; a deploy script with a hard-coded
+home directory, hostname or profile; manual steps after the script
+("then restart it on the box"); versioning rules in nobody's notes;
+release credentials on one laptop.
+
+**Encode as:** a release task that runs the whole sequence, repo-relative
+and parameterised by environment; CI-driven release where the repo
+already has CI; a rollback task or documented command next to the
+release one; the secret sources the script reads, named in docs. Who may
+release is a person-sourced fact unless branch protection or CI config
+already encodes it.
+
+## Operate
+
+**Answered:** someone on call who has never seen the system can tell
+whether it is healthy, find its logs, and fix the common failures.
+
+**Failing:** dashboards and alerts bookmarked by one person; recovery
+steps in a chat thread; retry limits, timeouts and batch sizes with no
+stated reason; failure modes known only from experience.
+
+**Encode as:** a runbook section per alert or known failure (symptom,
+check, fix); links to dashboards as stable URLs, not personal bookmarks;
+a cited comment on each operational constant when history explains it,
+and a question when it does not. A health-check command or task beats a
+paragraph describing what healthy looks like.
+
+## Ownership
+
+**Answered:** for any area, a newcomer can find who reviews changes and
+who to escalate to, by role or team where possible.
+
+**Failing:** no `CODEOWNERS`; owners who left; the only contact a
+personal handle; every area owned by the same person.
+
+**Encode as:** `CODEOWNERS` (enforced by branch protection where the host
+supports it) with owners the user confirms. History suggests candidates:
+the people with recent commits and reviews in each path. A single name on
+every line is itself a finding: say so rather than writing it down as if
+it were fine.
+
+## Reading concentration correctly
+
+- Use recent history for who holds knowledge now (`--since 2.years`) and
+  full history for who built it.
+- `.mailmap` merges aliases; without one, check `git shortlog -sne` for
+  one person under two emails before reporting a bus factor of two.
+- Large mechanical commits (formatting, vendoring, renames) inflate a
+  person's share; check `git log --stat` for the top commits of a
+  surprising holder.
+- Bot and agent commits: attribute them to the human who directed and
+  merged them (`Co-Authored-By:` trailers, the merge commit's author).
+- A high bus factor on a path nobody touches is not reassurance: if every
+  author has left, its effective bus factor is zero.

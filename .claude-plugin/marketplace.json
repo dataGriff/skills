@@ -1,7 +1,7 @@
 {
   "name": "datagriff",
   "metadata": {
-    "description": "dataGriff's agent skills: API and data-contract authoring, BDD, mocking, repo optimization and repo consistency checking"
+    "description": "dataGriff's agent skills in five families: API design and testing, data contracts, requirements and BDD, repo health, planning and writing"
   },
   "owner": {
     "name": "dataGriff",
@@ -12,13 +12,26 @@
       "name": "datagriff-skills",
       "source": "./",
       "strict": false,
-      "description": "All dataGriff skills as one bundle: OpenAPI, AsyncAPI, ODCS data contracts, datacontract-cli, Gherkin authoring, Microcks API mocking, agent-ready repo optimization, and repo consistency checking. The plugin root is the repo itself, so its skills/ directory is the plugin's skills - no duplication, and new skills ship automatically.",
+      "description": "All dataGriff skills as one bundle: OpenAPI and AsyncAPI authoring, API security, Microcks mocking and contract testing, ODCS data contracts and datacontract-cli, requirements to Gherkin and Cucumber.js, repo health (bus factor, consistency, declutter, agent optimisation), and planning and writing. The plugin root is the repo itself, so its skills/ directory is the plugin's skills - no duplication, and new skills ship automatically. To install one family instead, clone and run task install:skills GROUP=<family> (see docs/catalog.md).",
       "author": {
         "name": "dataGriff",
         "url": "https://github.com/dataGriff"
       },
       "homepage": "https://github.com/dataGriff/skills",
-      "keywords": ["openapi", "asyncapi", "data-contracts", "odcs", "gherkin", "microcks", "agent-skills", "consistency"]
+      "keywords": [
+        "openapi",
+        "asyncapi",
+        "api-security",
+        "data-contracts",
+        "odcs",
+        "gherkin",
+        "bdd",
+        "microcks",
+        "agent-skills",
+        "bus-factor",
+        "consistency",
+        "agents-md"
+      ]
     }
   ]
 }

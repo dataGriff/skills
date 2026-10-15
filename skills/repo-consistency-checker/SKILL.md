@@ -1,19 +1,16 @@
 ---
 name: repo-consistency-checker
 description: >-
-  Audit a repository for internal consistency: check that every fact stated
-  in docs, comments, docstrings, config and help text matches the code that
-  actually exists (commands, paths, names, versions, numbers, behaviour), and
-  strip redundancy — the same fact stated twice, dead or duplicated code,
-  orphan or stale docs, done TODOs, commented-out code — so each fact has one
-  source of truth. Produces an evidence-backed findings table and applies the
-  fixes on request. Use when the user asks to check a repo, PR or change for
-  consistency or drift, for stale or outdated docs/comments, for docs that
-  do not match the code, for duplicated or redundant content, for dead code,
-  or for a single-source-of-truth cleanup; after a refactor, rename or
-  removal; before a release; or when they say "tidy up", "audit", "are the
-  docs still right", "is anything out of date", or "does the code do what
-  the comments say".
+  Check that a repository's docs, comments, docstrings, config and help
+  text match the code that actually runs (commands, paths, names,
+  versions, numbers, behaviour), and that each fact is stated once: finds
+  drift, duplicated facts, dead code, orphan docs and finished TODOs,
+  reports each with two-location evidence, and fixes on request. Use when
+  asked whether docs are still right or out of date, to check a repo, PR
+  or change for drift or duplication, after a refactor, rename or removal,
+  before a release, or when asked whether the code does what the comments
+  say. Missing knowledge is bus-factor's job; true but verbose text is
+  repo-declutter's.
 ---
 
 # Repo consistency check
@@ -189,6 +186,13 @@ used to find it. For each fix:
 Re-run the scan and the repo's own checks (its `check` task, the test
 suite, the linter) at the end. A cleanup that breaks the build is the one
 inconsistency nobody forgives.
+
+## Hand-offs
+
+- Knowledge that is missing rather than wrong (an env var no doc names, a
+  deploy only one person can run): the `bus-factor` skill.
+- Text that is true but verbose, or history kept in docs: `repo-declutter`.
+- Where docs live and what agents load first: `repo-optimization`.
 
 ## References
 

@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""Grade api-mocking-microcks eval runs. Usage: grade.py <iteration-dir>.
+"""Grade microcks eval runs. Usage: grade.py <iteration-dir>.
 
 Expects <iteration-dir>/eval-*/{with_skill,without_skill}/outputs/ as laid
-out by scripts/eval_skills.py (run via `task eval:skills
-NAME=api-mocking-microcks`). Writes grading.json per arm and prints a
-pass/total summary.
+out by scripts/eval_skills.py (run via `task eval:skills NAME=microcks`).
+Writes grading.json per arm and prints a pass/total summary.
 
-Grading is static: it checks the produced specs, overlays, and test code
-against the Microcks conventions that determine whether mocks actually work
-(dispatcher wiring, named-example pairing, `{{ }}` templating, overlay
-identity matching, Testcontainers endpoint injection). Container registries
-hosting Microcks images may be unreachable in sandboxed environments, so no
-live import is attempted.
+Grading is static: it checks the produced specs, overlays, workflows and
+test code against the Microcks conventions that decide whether mocks and
+contract tests actually work (dispatcher wiring, named-example pairing,
+`{{ }}` templating, overlay identity, real action/CLI names and inputs,
+runner ids, the Testcontainers API). Container registries hosting Microcks
+images may be unreachable in sandboxed environments, so no live import is
+attempted.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -241,41 +242,75 @@ def grade_overlay(out):
     return ex
 
 
-def grade_testcontainers(out):
+def read(path):
+    return path.read_text() if path.exists() else ""
+
+
+def grade_actions_gate(out):
     ex = []
-    test = out / "order-client.integration.test.ts"
-    if not test.exists():
-        test = next((p for p in sorted(out.rglob("*.ts")) + sorted(out.rglob("*.js"))
-                     if "microcks" in p.read_text().lower()), None)
-    if test is None:
-        return [E("Integration test file produced", False, "no test file using microcks found")]
-    code = test.read_text()
-    ex.append(E("Uses the @microcks/microcks-testcontainers module",
-                "microcks-testcontainers" in code and "MicrocksContainer" in code,
-                "grep import + MicrocksContainer"))
-    ex.append(E("Imports order-api.yaml into the container as a main artifact",
-                "withMainArtifact" in code and "order-api.yaml" in code,
-                "grep withMainArtifacts(order-api.yaml)"))
-    ex.append(E("Derives the mock base URL via getRestMockEndpoint('Order API','1.0')",
-                "getRestMockEndpoint" in code and "Order API" in code and "1.0" in code,
-                "grep getRestMockEndpoint"))
-    ex.append(E("OrderClient exercised against both known orders",
-                "OrderClient" in code and "abc123" in code and "def456" in code
-                and "shipped" in code and "pending" in code,
-                "grep client + order assertions"))
-    ex.append(E("Contract test uses testEndpoint with the OPEN_API_SCHEMA runner",
-                "testEndpoint" in code and "OPEN_API_SCHEMA" in code
-                and any(sut in code for sut in
-                        ("localhost:3000", "host.testcontainers.internal",
-                         "host.docker.internal")),
-                "grep testEndpoint + runner + SUT url"))
-    ex.append(E("No hand-built mock URLs (no /rest/... or fixed Microcks port)",
-                "rest/order" not in code.lower().replace(" ", "").replace("+", "")
-                and "8585" not in code and "localhost:8080" not in code,
-                "grep hardcoded rest paths/ports"))
-    md_text = all_doc_text(out)
-    ex.append(E("README-TESTS.md covers installing the Testcontainers module",
-                "microcks-testcontainers" in md_text, "grep install command"))
+    wf = out / "contract-test.yml"
+    text = read(wf) + "\n" + read(out / "setup.md")
+    valid = wf.exists() and load_yaml(wf) is not None
+    # Real test surface: the official action or the CLI's `test` verb.
+    uses_action = "microcks/test-github-action" in text
+    uses_cli = bool(re.search(r"microcks(-cli)?\s+test\s", text))
+    ex.append(E("Workflow is valid YAML with a real Microcks test step "
+                "(test-github-action or `microcks test`)",
+                valid and (uses_action or uses_cli),
+                f"valid={valid} action={uses_action} cli={uses_cli}"))
+    ex.append(E("Service referenced as 'Order API:1.2.0' (name:version form)",
+                "Order API:1.2.0" in text, "grep 'Order API:1.2.0'"))
+    ex.append(E("Uses the OPEN_API_SCHEMA runner",
+                "OPEN_API_SCHEMA" in text,
+                f"runners found={sorted(set(re.findall(r'[A-Z_]*SCHEMA|POSTMAN|HTTP', text)))}"))
+    has_import = ("microcks/import-github-action" in text
+                  or bool(re.search(r"microcks(-cli)?\s+import(?:-url|-dir)?\s", text)))
+    ex.append(E("Imports the committed spec (import action or `microcks import`)",
+                has_import, "grep import action/command"))
+    creds_named = bool(re.search(r"keycloakClient(Id|Secret)", text)) or \
+        bool(re.search(r"--keycloakClient(Id|Secret)", text))
+    via_secrets = "secrets." in text
+    hardcoded = re.search(
+        r"(clientSecret|keycloakClientSecret|password)\s*[:=]\s*['\"]?[A-Za-z0-9+/-]{12,}",
+        text, re.I)
+    ex.append(E("Keycloak service-account creds passed by their real names, "
+                "via secrets, none hardcoded",
+                creds_named and via_secrets and not hardcoded,
+                f"named={creds_named} secrets={via_secrets} hardcoded={bool(hardcoded)}"))
+    return ex
+
+
+def grade_node_testcontainers(out):
+    ex = []
+    tests = list(out.glob("*.test.ts")) + list(out.glob("*.test.js"))
+    code = "\n".join(read(t) for t in tests)
+    text = code + "\n" + read(out / "deps.md")
+    pkg_mentions = sorted(set(re.findall(r"[@\w/-]*microcks[\w/-]*", text)))[:8]
+    ex.append(E("Names the real npm package @microcks/microcks-testcontainers",
+                "@microcks/microcks-testcontainers" in text,
+                f"pkg-ish mentions={pkg_mentions}"))
+    ex.append(E("Starts MicrocksContainer and loads the spec as a main artifact",
+                "MicrocksContainer" in code
+                and bool(re.search(r"withMainArtifacts?\(|importAsMainArtifact\(", code)),
+                "grep MicrocksContainer + withMainArtifacts/importAsMainArtifact"))
+    ex.append(E("Exposes the REST mock URL via getRestMockEndpoint",
+                "getRestMockEndpoint" in code, "grep getRestMockEndpoint"))
+    # serviceId is often assembled from constants, so require the parts
+    # (name, version, a serviceId field, the app URL) rather than the literal.
+    calls_test = "testEndpoint" in code and "serviceId" in code \
+        and "Order API" in code and "1.2.0" in code and "localhost:3001" in code
+    ex.append(E("Runs the conformance test: testEndpoint with the service's "
+                "name+version as serviceId, against the app URL",
+                calls_test,
+                f"testEndpoint={'testEndpoint' in code} serviceId={'serviceId' in code} "
+                f"name={'Order API' in code} ver={'1.2.0' in code} url={'localhost:3001' in code}"))
+    runner_ids = sorted(set(re.findall(r"[A-Z][A-Z_]*SCHEMA", code)))
+    ex.append(E("Uses the real OPEN_API_SCHEMA runner id (not a hallucinated variant)",
+                bool(re.search(r"\bOPEN_API_SCHEMA\b", code)),
+                f"runner ids found={runner_ids}"))
+    ex.append(E("Asserts on the test result's success flag",
+                bool(re.search(r"(testResult|result)\.success", code)),
+                "grep .success assertion"))
     return ex
 
 
@@ -283,7 +318,8 @@ GRADERS = {
     "eval-0": grade_json_body,
     "eval-1": grade_async,
     "eval-2": grade_overlay,
-    "eval-3": grade_testcontainers,
+    "eval-3": grade_actions_gate,
+    "eval-4": grade_node_testcontainers,
 }
 
 

@@ -29,7 +29,7 @@ doc only when its trigger in the Routes table fires.
 | `task check`                                 | `check:skills` + `check:context` — what hooks and CI run    |
 | `task new:skill NAME=my-skill`               | scaffold `skills/my-skill/`                                 |
 | `task eval:skills NAME=x [MODEL=...]`        | with/without-skill evals via the `claude` CLI (not in CI)   |
-| `task install:skills [AGENTS=..] [SKILLS=..]`| symlink skills into `~/.claude`, `~/.codex`, `~/.copilot`   |
+| `task install:skills [GROUP=..] [SKILLS=..]` | symlink skills (or one family) into `~/.claude`, `~/.codex`, `~/.copilot` |
 | `task ci`                                    | everything GitHub Actions runs                              |
 
 ## Layout
@@ -64,6 +64,10 @@ reasoning, examples and eval workflow.
   condition) cost a tool turn on every use; `task check:skills` warns.
 - **Every bundled file is mentioned** in SKILL.md or a reference doc;
   reference files over 300 lines get a table of contents.
+- **Catalog**: every skill sits in one family table in `docs/catalog.md`,
+  with a one-line "use when". It is the user guide and the source of
+  `install:skills GROUP=`; `task check:skills` fails on a skill in no
+  family. A new skill also adds its neighbours to its "when not to use".
 - **Evals**: when you create a skill or meaningfully edit one (workflow,
   guidance, references), run `task eval:skills NAME=<skill>` and commit
   the refreshed `evals/latest-results.md`. The PR template asks for the

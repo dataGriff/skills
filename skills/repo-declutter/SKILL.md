@@ -1,19 +1,14 @@
 ---
 name: repo-declutter
 description: >-
-  Strip noise from a repository so humans and agents read less for the same
-  knowledge: cut verbose doc prose, move history and narrative out of docs
-  into git (changelog sections, "previously we…", migration diaries), delete
-  comments that restate code, commented-out code, stale TODOs and banner
-  comments, and replace comments that paper over unclear code with a
-  behaviour-preserving rename or extract. Audits first (a findings table:
-  what, where, why, action, what git already holds), then applies one
-  reviewable commit per category with tests green; never removes licences,
-  security notes, agent rules, API contracts or comments that explain a
-  constraint. Use when asked to declutter, cleanse, slim or de-noise a repo,
-  README, docs or comments, to remove noise comments or commented-out code,
-  to make docs succinct or less verbose, or to move history out of docs
-  into git. Checking docs against code or duplicated facts is
+  Cut noise from a repository's docs and comments so readers learn the
+  same from fewer words: tighten verbose prose, move history and narrative
+  into git or a changelog, delete restating comments, commented-out code
+  and ownerless TODOs, and replace comments that excuse unclear code with
+  renames. Audits first, commits per category, and keeps licences,
+  security notes, rules and constraint comments. Use when asked to
+  declutter, slim or de-noise docs or comments, make them succinct, or
+  move history out of docs into git. Wrong or duplicated facts are
   repo-consistency-checker's job.
 ---
 
@@ -118,6 +113,8 @@ leaves silently.
   disagrees with the code, the same fact in two places, dead code, broken
   links — that is the `repo-consistency-checker` skill. This one removes
   text that is true but unnecessary.
+- The problem is *what is missing*: setup, deploys or reasons that only a
+  person knows — that is the `bus-factor` skill. This one only removes.
 - Prose outside a repo (essays, emails, articles): `orwell-prose` has the
   method; this skill only adds the repo rules (keep every fact, command
   and path).

@@ -1,0 +1,53 @@
+{
+  "skill_name": "bus-factor",
+  "allowed_tools": [
+    "Bash(bash make_history.sh)",
+    "Bash(git *)",
+    "Bash(python *)",
+    "Bash(python3 *)",
+    "Bash(make test)",
+    "Bash(ls *)",
+    "Bash(cat *)"
+  ],
+  "downstream_repeats": 2,
+  "evals": [
+    {
+      "id": 0,
+      "name": "dave-knows-everything",
+      "prompt": "This is a snapshot of our invoicer repo. First run `bash make_history.sh` to restore its git history (the script deletes itself). Right now the team relies on Dave for setup, deploys and anything odd in the code. Make the repo something a new contributor can set up, test, change, deploy and operate without asking anyone: work out what knowledge is missing, write your findings to a markdown file at the repo root, and fix what you can in the repo itself. Commit your changes (pass -c user.name=eval -c user.email=eval@example.com to git if it has no identity). Do not deploy anything and do not ask questions.",
+      "expected_output": "A findings report scoring each newcomer stage (setup, test, change, release, operate, ownership) with evidence, impact and whether the repo or a person is the source; concentration noted (Dave holds billing.py, app.py, deploy.sh); the FIN-212 rounding reason and the 300 req/min batch reason recovered from git history into the repo with citations; all four env vars and the SSM secret sources documented (e.g. .env.example); the test command and Python version documented or pinned; /home/dave removed from deploy.sh; README no longer routes setup and deploys through Dave; RETRY_LIMIT's reason not invented but asked of Dave in a questions list; no CODEOWNERS making Dave sole owner; tests still pass; changes committed",
+      "files": [
+        "invoicer/README.md",
+        "invoicer/pyproject.toml",
+        "invoicer/Makefile",
+        "invoicer/app.py",
+        "invoicer/billing.py",
+        "invoicer/test_billing.py",
+        "invoicer/deploy.sh",
+        "invoicer/make_history.sh"
+      ],
+      "downstream": [
+        {
+          "id": "newcomer",
+          "prompt": "You have just joined the team. Write ANSWER.md with: (1) the command that runs the tests, (2) every environment variable the app reads and where production values come from, (3) how to deploy, (4) why invoice totals use half-even rounding, and (5) why RETRY_LIMIT is 7. Say 'unknown' where the repository does not tell you; do not guess. Work only from the repository and its git history; do not run the app, the tests or any deploy."
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "dave-is-leaving",
+      "prompt": "This is a snapshot of our invoicer repo. First run `bash make_history.sh` to restore its git history (the script deletes itself). Dave, who wrote most of it, leaves in two weeks. Work out what knowledge we would lose with him and what we need to get from him before he goes. Audit only: do not change any code or docs in the repo; write your findings to a single markdown file at the repo root. Do not ask questions.",
+      "expected_output": "One report file; no repo file changed; Dave's single-author areas identified (app.py, billing.py, deploy.sh); a specific question list for Dave covering the retry limit, deploy access and the AWS/SSM permissions, the production host and restart, and who else can deploy; the rounding (FIN-212) and batch-size (300 req/min) reasons recovered from history rather than asked; all undocumented env vars listed",
+      "files": [
+        "invoicer/README.md",
+        "invoicer/pyproject.toml",
+        "invoicer/Makefile",
+        "invoicer/app.py",
+        "invoicer/billing.py",
+        "invoicer/test_billing.py",
+        "invoicer/deploy.sh",
+        "invoicer/make_history.sh"
+      ]
+    }
+  ]
+}

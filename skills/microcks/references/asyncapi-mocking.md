@@ -31,9 +31,9 @@ docker run -d --name microcks-async-minion --network microcks -p 8081:8081 \
 ```
 
 **Docker-compose / Kubernetes:** the microcks repo ships an async addon
-compose file (`docker-compose.yml` + `docker-compose-async-addon.yml`,
-which brings its own Kafka), and the Helm chart/operator take
-`features.async.enabled=true`. See automation-and-testing.md for the base
+compose file (`docker-compose.yml` + `async-addon.yml`; devmode bundles
+async already), and the Helm chart/operator take
+`features.async.enabled=true`. [automation.md](automation.md) has the base
 installs. Testcontainers modules expose the same thing as a
 `MicrocksContainersEnsemble` with async enabled.
 
@@ -114,17 +114,17 @@ the real application's topic/endpoint for a while and validates every
 captured message against the AsyncAPI payload schema.
 
 ```bash
-microcks-cli test 'User signed-up API:0.1.0' \
+microcks test 'User signed-up API:0.1.0' \
   kafka://mybroker:9092/app.signups ASYNC_API_SCHEMA \
   --microcksURL=http://localhost:8585/api/ \
-  --keycloakClientId=foo --keycloakClientSecret=bar \
   --waitFor=20sec
 ```
 
 The test endpoint is a protocol URL (`kafka://…`, `ws://…`, `mqtt://…`)
 pointing at the *system under test's* broker and topic, not at Microcks.
 Common failure: `waitFor` shorter than the app's publish interval — nothing
-is captured and the test errors rather than fails.
+is captured and the test errors rather than fails. Broker URL formats per
+protocol are in [automation.md](automation.md).
 
 ## Gotchas
 

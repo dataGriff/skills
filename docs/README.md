@@ -8,6 +8,7 @@ there. Read only the doc whose trigger matches — each row says when.
 
 | When you are…                                              | Do this                                                        |
 | ---------------------------------------------------------- | -------------------------------------------------------------- |
+| choosing a skill, explaining how skills combine, or picking a `GROUP=` to install | Read [catalog.md](catalog.md) first — every skill by family, with when to use it |
 | setting up the repo locally, or `task`/mise is missing     | Read [setup.md](setup.md) first — mise, task, hooks, bootstrap |
 | creating or editing a skill                                | Read [skills.md](skills.md) before you scaffold or change one  |
 | installing these skills into Claude Code, Codex, or Copilot | Read [install.md](install.md) before touching `.claude/` or `.codex/` |

@@ -15,6 +15,7 @@ Checks (per skill):
   in SKILL.md or a reference doc - unmentioned files are invisible to agents
 - relative markdown links inside reference docs resolve to real files
 - large reference files (> 300 lines) carry a table of contents (warning only)
+- every skill is listed in exactly one family in docs/catalog.md
 - SKILL.md does not load bundled files on every use: no unconditional cue
   phrasing ("start from the template", "read X before writing") and no reads
   inside numbered workflow steps without a stated condition (warning only)
@@ -28,6 +29,8 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+
+from catalog import groups as catalog_groups
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
@@ -275,6 +278,28 @@ def check_skill(skill_dir: Path, errors: list[str], warnings: list[str]) -> None
                     )
 
 
+def check_catalog(names: list[str], errors: list[str]) -> None:
+    """Every skill sits in exactly one family of docs/catalog.md: it is the
+    guide users choose from and the source of install GROUP= sets."""
+    families = catalog_groups()
+    if not families:
+        errors.append("docs/catalog.md: no `GROUP=` families found.")
+        return
+    seen: dict[str, list[str]] = {}
+    for group, members in families.items():
+        for name in members:
+            seen.setdefault(name, []).append(group)
+    for name in names:
+        if name not in seen:
+            errors.append(f"skills/{name}: not in any family in docs/catalog.md. "
+                          "Add a row to the family it belongs to.")
+        elif len(seen[name]) > 1:
+            errors.append(f"skills/{name}: in more than one docs/catalog.md family "
+                          f"({', '.join(seen[name])}). Pick one.")
+    for name in sorted(set(seen) - set(names)):
+        errors.append(f"docs/catalog.md: lists `{name}`, which is not a skill.")
+
+
 def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -290,6 +315,7 @@ def main() -> int:
 
     for skill_dir in skill_dirs:
         check_skill(skill_dir, errors, warnings)
+    check_catalog([d.name for d in skill_dirs], errors)
 
     for warning in warnings:
         print(f"WARNING: {warning}")
