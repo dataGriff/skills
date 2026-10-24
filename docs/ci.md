@@ -10,6 +10,12 @@ local and remote can never disagree about what gets checked.
 .github/workflows/ci.yml ──────────────────→ task ci
 ```
 
+GitHub enforces it: a ruleset on `main` requires a pull request with the
+`ci` job green, squash is the only merge method, and head branches are
+deleted on merge. `task setup:github` applies or re-applies those settings;
+if the `ci` job is ever renamed, re-run it with `CHECKS=<new name>` or every
+PR waits on a check that never reports.
+
 ## The checks
 
 - `task check:skills` (`scripts/check_skills.py`) — skill best practices:
