@@ -82,21 +82,24 @@ def run_claude(
     """Run one headless session. With stream=True the per-message event
     stream is parsed so the tool calls made before the first file write
     (how much orientation the repo demanded) are recorded as well."""
-    cmd = ["claude", "-p", prompt, "--permission-mode", "acceptEdits"]
+    # dontAsk denies anything not allow-listed without raising a permission
+    # prompt. acceptEdits raised one for every shell command and sensitive
+    # path, and a prompt in a headless run is answered by whatever
+    # PermissionRequest hook the terminal injected (cmux: ~2 minutes, then
+    # denied), so one eval arm could burn its whole timeout on refusals.
+    # Edits are allowed outright, which is what acceptEdits gave; an eval
+    # whose task drives a CLI declares the commands it needs in evals.json
+    # ("allowed_tools").
+    cmd = ["claude", "-p", prompt, "--permission-mode", "dontAsk"]
     cmd += ["--output-format", "stream-json", "--verbose"] if stream else ["--output-format", "json"]
     if model:
         cmd += ["--model", model]
     if add_dir:
         # The with-skill prompt tells the model to read files under
         # add_dir (the skill directory); some models otherwise refuse to
-        # read outside cwd even under acceptEdits.
+        # read outside cwd.
         cmd += ["--add-dir", str(add_dir)]
-    if allowed_tools:
-        # acceptEdits auto-approves file edits but not shell commands. An
-        # eval whose task is to drive a CLI declares the commands it needs
-        # in evals.json ("allowed_tools"); without this both arms stall
-        # asking for approval and burn turns producing nothing.
-        cmd += ["--allowedTools", *allowed_tools]
+    cmd += ["--allowedTools", *sorted(WRITE_TOOLS), *(allowed_tools or [])]
     start = time.time()
     result = subprocess.run(
         cmd,
