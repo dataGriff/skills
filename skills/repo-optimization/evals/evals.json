@@ -1,6 +1,11 @@
 {
   "skill_name": "repo-optimization",
   "downstream_repeats": 3,
+  "allowed_tools": [
+    "Bash(cp *)",
+    "Bash(chmod *)",
+    "Bash(python3 *)"
+  ],
   "evals": [
     {
       "id": 0,
