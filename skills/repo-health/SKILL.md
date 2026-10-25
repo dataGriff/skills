@@ -44,19 +44,16 @@ Every phase follows its own skill's workflow, with these overrides:
   `*`; agents cannot write under `.git/`). Never `BUS-FACTOR.md` or
   `DECLUTTER-AUDIT.md` at the root, and nothing is written twice. Once
   the PR is open, delete the directory; the body lives in the PR.
-- **Mechanical fixes are applied; judgment calls are listed.** Mechanical:
-  the sub-skill's fix table says what to write and the evidence is in the
-  repo (drift to code truth, dead code, a broken link, an env var into
-  `.env.example`, history into a commit body, a route line,
-  `CLAUDE.md = @AGENTS.md`). Judgment: anything the sub-skill already
-  defers to a person (bus-factor's person-sourced rows and CODEOWNERS,
+- **Each phase keeps its own skill's gates.** What a sub-skill applies on
+  its own, it applies here, including the files it creates (`.env.example`,
+  a rule-named test, an ADR, a Taskfile, mise pins, hooks, a CI wrapper)
+  when its own conditions hold. Those conditions are the guard against
+  over-treatment; a second blanket "propose only" on top turns a needed
+  fix into a suggestion. What a sub-skill defers to a person stays a
+  judgment call here: bus-factor's person-sourced rows and CODEOWNERS,
   consistency's "possible bug", declutter's "verify" rows and public
-  renames, GitHub settings without admin), plus everything optimization
-  would add on top of an entry file: a task runner, hooks, CI or guardrail
-  scripts go in the PR as proposals, because the measured risk of this
-  family is over-treatment. Building a minimal AGENTS.md where none exists,
-  or adding routes to one that fits, is mechanical. Do not stop after an
-  audit; the PR is the review point.
+  renames, GitHub settings without admin. Do not stop after an audit; the
+  PR is the review point.
 - **The pass verifies once.** Its final check run replaces each
   sub-skill's own verification walk; do not spawn fresh-context re-walks
   per phase.
@@ -97,12 +94,15 @@ Every phase follows its own skill's workflow, with these overrides:
    this skill's. Pass it the scope the user gave (whole repo by default)
    and the contract above. Run the repo's checks once at the end of the
    phase, then commit, writing the counts into the message last.
-   - *bus-factor*: write knowledge into docs that exist; do not create
-     AGENTS.md (optimization places content last). The one file it may
-     create is `docs/architecture.md` with Mermaid C4 context and
-     container views derived from compose, IaC, entry points and client
-     code. Questions for people go to the audit, never answered by
-     guessing.
+   - *bus-factor*: write each gap into the most executable home its fix
+     table names, creating the file when it is missing (C4 views go in
+     `docs/architecture.md`, derived from compose, IaC, entry points and
+     client code). Rituals and versions go into the repo's existing
+     runner and pin file; when there is none, record the gap in the audit
+     and leave creating one to optimization, so the pass never pins a
+     version twice or trips its own "commands in more than one home"
+     signal. Never create AGENTS.md; optimization places content last.
+     Questions for people go to the audit, never answered by guessing.
    - *consistency*: fix drift to the code's truth, delete dead code,
      commented-out code and finished TODOs, collapse duplicated facts to
      one home. Verify a numeric claim only in a file this phase already
@@ -113,9 +113,11 @@ Every phase follows its own skill's workflow, with these overrides:
      route names its trigger and says "read"; "see" is a mention, not a
      route); a minimal AGENTS.md (plus `CLAUDE.md` = `@AGENTS.md`) when
      none does;
-     fan-out only when the entry file is over budget. Runner, hooks, CI
-     and guardrail scripts are proposals in the PR. With admin, run its
-     `github-settings.sh`; otherwise put the command under judgment calls.
+     fan-out only when the entry file is over budget. Its steps 5–7
+     (runner, hooks, CI, guardrail checks) run when that skill's own
+     conditions hold and are skipped otherwise. One exception to those
+     gates: with admin, run its `github-settings.sh` even when step 6 is
+     skipped; without admin, put the command under judgment calls.
 4. **Verify.** Run the checks and tests a final time; re-run the triage
    scan for before/after signal counts. Anything this turns up is fixed
    inside the owning phase's commit (`git commit --fixup` and an
@@ -143,7 +145,7 @@ do not look for it again.
 | duplicated facts or paragraphs | consistency | declutter trims verbosity, never merges duplicates |
 | broken links | consistency | optimization adds routes; it does not re-check links |
 | a doc nothing routes to | optimization, with a route | consistency deletes it only when its content is stale or already lives elsewhere |
-| missing setup, deploy or "why" knowledge | bus-factor, into existing docs | optimization places and budgets it last |
+| missing setup, deploy or "why" knowledge | bus-factor, in the most executable home | optimization places and budgets it last |
 | env vars and their sources | bus-factor, in `.env.example` | consistency keeps docs pointing at it, never a second table |
 | system shape (C4 context and container views) | bus-factor, in `docs/architecture.md` | consistency checks every box against a deployable or client; optimization routes to it |
 | README and AGENTS.md | content edits in phases 1–3 | shrinking, placement and the `@AGENTS.md` include in phase 4 |
