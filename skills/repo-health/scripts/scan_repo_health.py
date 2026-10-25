@@ -19,6 +19,8 @@ unrouted docs, command homes, CI), and prints one table:
 A verdict is a lead. "run" means the phase audits and then applies; "skip"
 means the repo shows none of that phase's symptoms, so the pass leaves it
 out unless the user asked for it by name. Thresholds live here, once.
+--json adds each sibling scanner's full output under "leads", so a phase
+that runs starts from those instead of re-running its own scan.
 
 Exit 2 when a sibling skill is missing: install the family with
 `task install:skills GROUP=repo`.
@@ -72,7 +74,7 @@ def read(path: Path) -> str:
         return ""
 
 
-def bus_factor_signals(root: Path) -> tuple[list[str], list[str]]:
+def bus_factor_signals(root: Path) -> tuple[list[str], list[str], dict]:
     scan = load("bus_factor")
     result = scan.scan(root, "")
     signals, notes = [], []
@@ -94,10 +96,10 @@ def bus_factor_signals(root: Path) -> tuple[list[str], list[str]]:
         if held:
             signals.append(f"{len(held)} path(s) held by one author: "
                            + ", ".join(f"{d['path']} ({d['holders'][0]})" for d in held[:3]))
-    return signals, notes
+    return signals, notes, result
 
 
-def consistency_signals(root: Path) -> tuple[list[str], list[str]]:
+def consistency_signals(root: Path) -> tuple[list[str], list[str], dict]:
     scan = load("consistency")
     scanner = scan.Scanner(root)
     scanner.run()
@@ -114,13 +116,14 @@ def consistency_signals(root: Path) -> tuple[list[str], list[str]]:
     numeric = len(scanner.findings.get("numeric_claims", []))
     if numeric:
         notes.append(f"{numeric} numeric claim(s) to verify by hand")
-    return signals, notes
+    return signals, notes, dict(scanner.findings)
 
 
-def declutter_signals(root: Path) -> list[str]:
+def declutter_signals(root: Path) -> tuple[list[str], dict]:
     noise = load("noise")
     signals = []
     noisy_docs, noisy_code = [], []
+    rows = {"docs": [], "code": []}
     for path in noise.files_under(root):
         text = noise.read(path)
         if not text:
@@ -130,12 +133,14 @@ def declutter_signals(root: Path) -> list[str]:
             if HISTORY_HOMES.match(path.name):
                 continue  # history belongs there; declutter moves it in, not out
             row = noise.scan_doc(path, text, rel)
+            rows["docs"].append(row)
             if row["history"] or row["changelog_headings"] or row["dated"]:
                 noisy_docs.append(f"{rel} (history)")
             elif row["tokens"] > noise.DOC_WARN_TOKENS and row["hedges"] >= HEDGES_MIN:
                 noisy_docs.append(f"{rel} ({row['tokens']} tokens, {row['hedges']} hedges)")
         elif marker := noise.marker_for(path):
             row = noise.scan_code(path, text, marker, rel)
+            rows["code"].append(row)
             if row["banners"] or row["attributions"] or row["density"] > noise.COMMENT_DENSITY_WARN:
                 noisy_code.append(rel)
     if noisy_docs:
@@ -143,7 +148,7 @@ def declutter_signals(root: Path) -> list[str]:
     if noisy_code:
         signals.append(f"{len(noisy_code)} file(s) with banners, attributions or dense comments: "
                        + ", ".join(noisy_code[:3]))
-    return signals
+    return signals, rows
 
 
 def optimization_signals(root: Path) -> list[str]:
@@ -184,16 +189,18 @@ def optimization_signals(root: Path) -> list[str]:
 
 
 def triage(root: Path) -> list[dict]:
-    bus, bus_notes = bus_factor_signals(root)
-    consistency, notes = consistency_signals(root)
+    bus, bus_notes, bus_leads = bus_factor_signals(root)
+    consistency, notes, consistency_leads = consistency_signals(root)
+    declutter, declutter_leads = declutter_signals(root)
+    optimization = optimization_signals(root)
     phases = [
-        ("bus-factor", bus, bus_notes),
-        ("repo-consistency-checker", consistency, notes),
-        ("repo-declutter", declutter_signals(root), []),
-        ("repo-optimization", optimization_signals(root), []),
+        ("bus-factor", bus, bus_notes, bus_leads),
+        ("repo-consistency-checker", consistency, notes, consistency_leads),
+        ("repo-declutter", declutter, [], declutter_leads),
+        ("repo-optimization", optimization, [], {"signals": optimization}),
     ]
-    return [{"phase": name, "signals": sig, "notes": note, "verdict": "run" if sig else "skip"}
-            for name, sig, note in phases]
+    return [{"phase": name, "signals": sig, "notes": note, "verdict": "run" if sig else "skip",
+             "leads": leads} for name, sig, note, leads in phases]
 
 
 def table(rows: list[dict]) -> str:

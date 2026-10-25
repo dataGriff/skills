@@ -38,10 +38,11 @@ Every phase follows its own skill's workflow, with these overrides:
   the sub-skill's own granularity (stages, logical groups, categories) as
   bullets with counts in the body. Not a commit per category: a reviewer
   reads one PR, not twelve commits.
-- **Audits go inside `.git/`**, at `$(git rev-parse --git-dir)/repo-health/<phase>.md`,
-  never `BUS-FACTOR.md` or `DECLUTTER-AUDIT.md` at the root. Nothing
-  lands at the repo root that is not the repo's own content; the PR body
-  carries the audits.
+- **Audits are the PR body.** Each phase writes its audit as its own
+  section of `$(git rev-parse --git-dir)/repo-health/PR.md` (create the
+  directory in step 1), never `BUS-FACTOR.md` or `DECLUTTER-AUDIT.md` at
+  the root. Nothing lands at the repo root that is not the repo's own
+  content, and nothing is written twice.
 - **Mechanical fixes are applied; judgment calls are listed.** Mechanical:
   the sub-skill's fix table says what to write and the evidence is in the
   repo (drift to code truth, dead code, a broken link, an env var into
@@ -49,23 +50,35 @@ Every phase follows its own skill's workflow, with these overrides:
   `CLAUDE.md = @AGENTS.md`). Judgment: anything the sub-skill already
   defers to a person (bus-factor's person-sourced rows and CODEOWNERS,
   consistency's "possible bug", declutter's "verify" rows and public
-  renames, optimization's build or fan-out beyond routes-only, GitHub
-  settings without admin). Do not stop after an audit; the PR is the
-  review point.
+  renames, GitHub settings without admin), plus everything optimization
+  would add on top of an entry file: a task runner, hooks, CI or guardrail
+  scripts go in the PR as proposals, because the measured risk of this
+  family is over-treatment. Building a minimal AGENTS.md where none exists,
+  or adding routes to one that fits, is mechanical. Do not stop after an
+  audit; the PR is the review point.
+- **The pass verifies once.** Its final check run replaces each
+  sub-skill's own verification walk; do not spawn fresh-context re-walks
+  per phase.
 
 ## Workflow
 
 1. **Baseline.** Confirm a clean tree and the default branch; create the
-   branch. Run the repo's checks and tests once and record the result (a
-   failing suite means declutter touches docs and comments only). Record
+   branch and the `repo-health/` directory under `.git/`. Run the repo's
+   checks and tests once and record the result in the PR body: a red
+   baseline is reported, not fixed, every phase keeps the failing set
+   unchanged, and declutter then touches docs and comments only. Record
    `gh` capability once: `gh auth status` fails for any reason → none;
    otherwise `gh api repos/{owner}/{repo} --jq .permissions.admin` → admin
    or write.
 2. **Triage.** When the repo has git history or more than a handful of
    files, run `python3 <this skill's dir>/scripts/scan_repo_health.py <repo>`
    and take its table as the plan; for a tiny repo, fill the table by
-   hand from the signals below. Override a verdict only with a reason that
-   goes in the PR. All four skip: reply with the table, open nothing.
+   hand from the signals below. Its `--json` output carries every sibling
+   scanner's leads, so the phases take their leads from it instead of
+   re-running their own scans. Signals are leads, and some are false
+   (a URL pattern read as a path); a phase that finds only noise commits
+   nothing and says so. Override a verdict only with a reason that goes
+   in the PR. All four skip: reply with the table, open nothing.
 
    | Phase | Runs when the repo shows |
    |---|---|
@@ -74,36 +87,39 @@ Every phase follows its own skill's workflow, with these overrides:
    | declutter | docs carrying history or hedged prose; files with banners, attributions or dense comments |
    | optimization | no auto-loading entry file, or one over budget; a doc nothing routes to; commands in more than one home; no CI |
 
-3. **Phases, in order, only those that run.** Load the sub-skill: in
-   Claude Code the Skill tool by name, otherwise read `<name>/SKILL.md`
-   from the directory beside this skill's. Pass it the scope the user
-   gave (whole repo by default) and the contract above. Run the repo's
-   checks once at the end of the phase, then commit.
+3. **Phases, in order, only those that run.** Load the sub-skill (a
+   skipped phase's skill is never loaded): in Claude Code the Skill tool
+   by name, otherwise read `<name>/SKILL.md` from the directory beside
+   this skill's. Pass it the scope the user gave (whole repo by default)
+   and the contract above. Run the repo's checks once at the end of the
+   phase, then commit, writing the counts into the message last.
    - *bus-factor*: write knowledge into docs that exist; do not create
      AGENTS.md or `docs/` (optimization places content last). Questions
      for people go to the audit, never answered by guessing.
    - *consistency*: fix drift to the code's truth, delete dead code,
      commented-out code and finished TODOs, collapse duplicated facts to
-     one home. Verify numeric claims only when another signal fires on
-     the same file; otherwise list them as "verify" in the PR.
+     one home. Verify a numeric claim only in a file this phase already
+     edits; otherwise list it as "verify" in the PR.
    - *declutter*: trim prose and comments that survive consistency;
      history goes into the commit body. Protected content stays.
-   - *optimization*: decide routes-only, build or fan-out from what the
-     earlier phases left; wire the runner, hooks and CI only when its own
-     triggers hold; with admin, run its `github-settings.sh`, otherwise
-     put the command under judgment calls.
+   - *optimization*: routes-only when an entry file exists and fits; a
+     minimal AGENTS.md (plus `CLAUDE.md` = `@AGENTS.md`) when none does;
+     fan-out only when the entry file is over budget. Runner, hooks, CI
+     and guardrail scripts are proposals in the PR. With admin, run its
+     `github-settings.sh`; otherwise put the command under judgment calls.
 4. **Verify.** Run the checks and tests a final time; re-run the triage
    scan for before/after signal counts.
-5. **Deliver.** Assemble the PR body in this order: Summary (the triage
-   table with ran/skipped and the commit per phase); Bus factor (stage
-   walk before/after, Questions for maintainers); Consistency (severity
-   table, coverage note); Declutter (findings, Protected — kept, deferred);
-   Optimization (outcome chosen, before/after tokens and reads, GitHub
-   settings applied or the command to run); Judgment calls (one list,
-   `file:line` each); Checks (baseline and final). Open it with
+5. **Deliver.** The PR body is `.git/repo-health/PR.md`, in this order:
+   Summary (the triage table with ran/skipped and the commit per phase);
+   Bus factor (stage walk before/after, Questions for maintainers);
+   Consistency (severity table, coverage note); Declutter (findings,
+   Protected — kept, deferred); Optimization (outcome chosen, before/after
+   tokens and reads, GitHub settings applied or the command to run);
+   Judgment calls (one list that points at the rows above, `file:line`
+   each, not a repeat of them); Checks (baseline and final). Open it with
    `gh pr create --draft --title "repo-health: <n> of 4 phases" --body-file`.
-   Without `gh` or a remote: leave the branch, write the body to
-   `.git/repo-health/PR.md`, and print that command in the reply.
+   When `gh` is unavailable, or the repo has no remote, leave the branch
+   and print that command in the reply.
 
 ## Who owns which finding
 
@@ -116,6 +132,7 @@ do not look for it again.
 | duplicated facts or paragraphs | consistency | declutter trims verbosity, never merges duplicates |
 | broken links, orphan docs | consistency | optimization adds routes; it does not re-check links |
 | missing setup, deploy or "why" knowledge | bus-factor, into existing docs | optimization places and budgets it last |
+| env vars and their sources | bus-factor, in `.env.example` | consistency keeps docs pointing at it, never a second table |
 | README and AGENTS.md | content edits in phases 1–3 | shrinking, placement and the `@AGENTS.md` include in phase 4 |
 | numeric claims | consistency, only alongside another signal | listed as "verify" in the PR otherwise |
 
