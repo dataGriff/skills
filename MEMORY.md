@@ -1,1 +1,0 @@
-- [GitHub repo settings](github-repo-settings.md) — squash-only, delete head branches, PR + CI required; apply via repo-optimization's github-settings.sh
