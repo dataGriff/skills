@@ -16,11 +16,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 UNHEALTHY = HERE / "fixtures" / "unhealthy"
 HEALTHY = HERE / "fixtures" / "healthy"
-SKIP = {".skill", ".skills", ".git", "__pycache__"}
+SKIP = {".skill", ".skills", ".git", "__pycache__", ".repo-health"}
 ENV_VARS = ["INVOICER_DB_URL", "PAYMENT_API_KEY", "INVOICER_TAX_RATE", "INVOICER_ENABLE_PDF"]
 PHASES = ("bus-factor", "consistency", "declutter", "optimization")
 SUBJECT = re.compile(r"^chore\((bus-factor|consistency|declutter|optimization)\):")
-ROOT_AUDITS = {"BUS-FACTOR.md", "DECLUTTER-AUDIT.md", "NOTES.md"}
+ROOT_AUDITS = {"BUS-FACTOR.md", "DECLUTTER-AUDIT.md", "NOTES.md", "repo-health"}
 REASON = re.compile(r"\b(because|so that|to avoid|in order to|due to|required by|to stay "
                     r"under|to match|chosen to|ensures?)\b", re.I)
 UNSURE = re.compile(r"unknown|unclear|undocumented|not recorded|no recorded|confirm|"
@@ -62,7 +62,7 @@ def new_subjects(out: Path, restored: int) -> list[str]:
 
 
 def pr_body(out: Path) -> str:
-    return read(out / ".git" / "repo-health" / "PR.md")
+    return read(out / ".repo-health" / "PR.md")
 
 
 def contract_checks(out: Path, restored: int, min_commits: int, max_commits: int) -> list[dict]:
