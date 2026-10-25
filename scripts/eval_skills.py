@@ -33,7 +33,9 @@ when to run them.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -45,7 +47,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 EVAL_ROOT = REPO_ROOT / ".evals"
-RUN_TIMEOUT_SECONDS = 900
+RUN_TIMEOUT_SECONDS = 1200  # an umbrella skill loads four SKILL.md files; 900 was a near miss
 DOWNSTREAM_WORKERS = 4
 DOWNSTREAM_STATES = ("before", "after-baseline", "after-skill")
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
@@ -101,18 +103,27 @@ def run_claude(
         cmd += ["--add-dir", str(add_dir)]
     cmd += ["--allowedTools", *sorted(WRITE_TOOLS), *(allowed_tools or [])]
     start = time.time()
-    result = subprocess.run(
-        cmd,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        timeout=RUN_TIMEOUT_SECONDS,
-    )
+    # Own process group: on timeout the CLI's children (shell tools, MCP
+    # servers) must die with it, or they hold the output pipe open and
+    # communicate() blocks for good - a timed-out arm once hung the whole
+    # run for an hour.
+    proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, start_new_session=True)
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(timeout=RUN_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        os.killpg(proc.pid, signal.SIGKILL)
+        stdout, stderr = proc.communicate()
+    result = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
     info = {
         "exit_code": result.returncode,
         "duration_seconds": round(time.time() - start, 1),
         "stderr_tail": result.stderr[-1000:],
     }
+    if timed_out:
+        info["timed_out"] = True
     try:  # headless JSON output carries usage/cost metadata
         if stream:
             payload, tool_calls = None, []
@@ -303,7 +314,8 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             final_outputs.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(outputs), str(final_outputs))
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
-            print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
+            print(f"done in {info['duration_seconds']}s (exit {info['exit_code']}"
+                  f"{', timed out' if info.get('timed_out') else ''})")
         run_downstream(ev, eval_dir, fixtures, scratch, model, allowed_tools,
                        int(spec.get("downstream_repeats", 1)))
     shutil.rmtree(scratch, ignore_errors=True)
