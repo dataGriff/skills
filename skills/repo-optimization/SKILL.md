@@ -295,7 +295,9 @@ This skill places content; it does not create, correct or trim it. When
 the knowledge an entry file should carry is missing (setup or deploys
 only one person knows), run `bus-factor` first. When docs disagree with
 the code or repeat a fact, `repo-consistency-checker`. When they are true
-but wordy, `repo-declutter`.
+but wordy, `repo-declutter`. For all four questions at once, `repo-health`
+runs this skill with its neighbours and owns the branch, commits, audit
+location and PR.
 
 ## References
 

@@ -1,6 +1,6 @@
 # Skill catalog
 
-Sixteen skills in five families. You do not run them by hand: an agent
+Seventeen skills in five families. You do not run them by hand: an agent
 picks a skill when your request matches its description, so ask for the
 outcome ("write an OpenAPI spec for orders", "Dave is leaving, what do we
 need from him?"). Most tasks need one skill. Families exist because some
@@ -75,17 +75,21 @@ the scenarios. Start at whichever step you already have the input for.
 
 | Skill | Use when |
 |---|---|
+| `repo-health` | the whole repo needs putting right in one pass: adopting it, before a handover, a periodic tidy |
 | `bus-factor` | knowledge lives in people's heads, someone is leaving, or newcomers get stuck |
 | `repo-consistency-checker` | docs, comments or config may no longer match the code, or a fact is stated twice |
 | `repo-declutter` | docs or comments are true but too long, or carry history that belongs in git |
 | `repo-optimization` | making a repo cheap for agents: AGENTS.md, routes into docs/, one task runner, CI checks |
 
-Each answers one question: is knowledge **missing**, is what's written
-**true and said once**, is it **longer than it needs to be**, can an agent
-**find it cheaply**. For a full pass (adopting a repo, before a
-handover) run them in that order, because each step changes what the next
-one sees. You do not need the full pass to keep a repo in shape; run one
-skill on a small scope when something happens:
+The four single skills each answer one question: is knowledge
+**missing**, is what's written **true and said once**, is it **longer than
+it needs to be**, can an agent **find it cheaply**. For a full pass
+(adopting a repo, before a handover) run `repo-health`: it triages with
+one scan, then runs the four in that order, because each step changes
+what the next one sees, skipping the phases the repo does not need, and
+hands back one branch and one draft PR. You do not need the full pass to
+keep a repo in shape; run one skill on a small scope when something
+happens:
 
 | When | Run | On |
 |---|---|---|

@@ -110,7 +110,9 @@ scores both arms. Headless runs allow file edits and deny every other
 tool call outright (no permission prompt: a terminal's PermissionRequest
 hook can take minutes to answer one), so an eval whose task drives a CLI
 must list the commands it needs as `"allowed_tools": ["Bash(datacontract
-*)"]` at the top level of `evals.json`. `grade.py`
+*)"]` at the top level of `evals.json`. A skill that loads its neighbours
+by path lists them as `"sibling_skills"`, and its arm gets the whole
+family copied under `.skills/`. `grade.py`
 scores both arms so you can compare pass rate, and the run metadata gives
 time and cost per task. The runner also refreshes the skill's
 `evals/latest-results.md` — a small **committed** summary table, so a PR

@@ -202,7 +202,7 @@ def run_downstream(
             # The arm's own artefacts (.skill copy, NOTES.md) are not part
             # of the repo a later agent would see.
             shutil.copytree(src, work, dirs_exist_ok=True,
-                            ignore=shutil.ignore_patterns(".skill", "NOTES.md"))
+                            ignore=shutil.ignore_patterns(".skill", ".skills", "NOTES.md"))
         info = run_claude(DOWNSTREAM_PROMPT.format(prompt=task["prompt"]), work,
                           model, None, allowed_tools, stream=True)
         final = eval_dir / rel / "outputs"
@@ -257,6 +257,9 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
     evals_file = skill_dir / "evals" / "evals.json"
     spec = json.loads(evals_file.read_text(encoding="utf-8"))
     allowed_tools = spec.get("allowed_tools") or []
+    # An umbrella skill loads its neighbours by path from the directory
+    # beside its own, so its arm gets the whole family under .skills/.
+    siblings = spec.get("sibling_skills") or []
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     iteration = EVAL_ROOT / skill_dir.name / stamp
     fixtures = skill_dir / "evals" / "fixtures"
@@ -281,18 +284,20 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             # on remote runners), so the with_skill arm gets a local copy of
             # the skill rather than a path it may not be allowed to read.
             # evals/ is excluded so the arm can't see its own grader.
-            eval_skill_dir = outputs / ".skill"
+            family_dir = outputs / ".skills" if siblings else None
+            eval_skill_dir = family_dir / skill_dir.name if siblings else outputs / ".skill"
             if arm == "with_skill":
-                shutil.copytree(
-                    skill_dir, eval_skill_dir, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("evals"),
-                )
+                for name in [skill_dir.name, *siblings]:
+                    shutil.copytree(
+                        SKILLS_DIR / name, eval_skill_dir.parent / name if siblings else eval_skill_dir,
+                        dirs_exist_ok=True, ignore=shutil.ignore_patterns("evals"),
+                    )
             prompt = template.format(
                 skill_dir=eval_skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
             # Grant read access to the copy the prompt names, not the real
             # skill dir — that would re-expose evals/ (the grader).
-            add_dir = eval_skill_dir if arm == "with_skill" else None
+            add_dir = (family_dir or eval_skill_dir) if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
             info = run_claude(prompt, outputs, model, add_dir, allowed_tools)
             final_outputs.parent.mkdir(parents=True, exist_ok=True)

@@ -147,6 +147,8 @@ vendor contacts, calendars).
 - Where docs live and what agents load: `repo-optimization`. Run this
   skill first to find what is missing, that one to place it cheaply.
 - Generated, vendored or third-party code: its knowledge lives upstream.
+- For all four questions at once, `repo-health` runs this skill with its
+  neighbours and owns the branch, commits, audit location and PR.
 
 ## References
 

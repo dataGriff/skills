@@ -115,6 +115,8 @@ leaves silently.
   text that is true but unnecessary.
 - The problem is *what is missing*: setup, deploys or reasons that only a
   person knows — that is the `bus-factor` skill. This one only removes.
+- For all four questions at once, `repo-health` runs this skill with its
+  neighbours and owns the branch, commits, audit location and PR.
 - Prose outside a repo (essays, emails, articles): `orwell-prose` has the
   method; this skill only adds the repo rules (keep every fact, command
   and path).

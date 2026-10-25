@@ -10,8 +10,9 @@ commit() { # author date message files...
   local who=$1 when=$2 msg=$3; shift 3
   for f in "$@"; do cp "$stash/$f" .; done
   git add "$@"
-  GIT_AUTHOR_NAME=$who GIT_AUTHOR_EMAIL="${who,,}@acme.example" GIT_AUTHOR_DATE=$when \
-  GIT_COMMITTER_NAME=$who GIT_COMMITTER_EMAIL="${who,,}@acme.example" GIT_COMMITTER_DATE=$when \
+  local mail="$(printf %s "$who" | tr A-Z a-z)@acme.example"
+  GIT_AUTHOR_NAME=$who GIT_AUTHOR_EMAIL=$mail GIT_AUTHOR_DATE=$when \
+  GIT_COMMITTER_NAME=$who GIT_COMMITTER_EMAIL=$mail GIT_COMMITTER_DATE=$when \
     git commit -q -m "$msg"
 }
 
