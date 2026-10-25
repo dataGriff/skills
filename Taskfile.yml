@@ -53,7 +53,9 @@ tasks:
   eval:skills:
     desc: "Run with/without-skill evals via the claude CLI: task eval:skills [NAME=my-skill] [MODEL=sonnet]"
     cmds:
-      - "{{.PYTHON}} scripts/eval_skills.py {{.NAME}} {{.MODEL}}"
+      # caffeinate: a laptop that idles to sleep mid-run pauses every arm
+      # and its timeout with it; one run lost an hour that way.
+      - "{{if eq OS \"darwin\"}}caffeinate -i {{end}}{{.PYTHON}} scripts/eval_skills.py {{.NAME}} {{.MODEL}}"
 
   eval:downstream:
     desc: "Re-run only the downstream task evals against an existing eval iteration: task eval:downstream NAME=x ITERATION=<stamp> [MODEL=sonnet]"

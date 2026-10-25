@@ -105,8 +105,9 @@ def run_claude(
     start = time.time()
     # Own process group: on timeout the CLI's children (shell tools, MCP
     # servers) must die with it, or they hold the output pipe open and
-    # communicate() blocks for good - a timed-out arm once hung the whole
-    # run for an hour.
+    # communicate() blocks for good. The timeout is monotonic, so a laptop
+    # that sleeps mid-arm pauses the clock along with the arm; the task
+    # keeps the machine awake for the run.
     proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, start_new_session=True)
     timed_out = False
