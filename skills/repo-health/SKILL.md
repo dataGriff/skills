@@ -45,8 +45,8 @@ Every phase follows its own skill's workflow, with these overrides:
   `DECLUTTER-AUDIT.md` at the root, and nothing is written twice. Once
   the PR is open, delete the directory; the body lives in the PR.
 - **Each phase keeps its own skill's gates.** What a sub-skill applies on
-  its own, it applies here, including the files it creates (a pin file,
-  `.env.example`, a rule-named test, a Taskfile, hooks, a CI wrapper)
+  its own, it applies here, including the files it creates (`.env.example`,
+  a rule-named test, an ADR, a Taskfile, mise pins, hooks, a CI wrapper)
   when its own conditions hold. Those conditions are the guard against
   over-treatment; a second blanket "propose only" on top turns a needed
   fix into a suggestion. What a sub-skill defers to a person stays a
@@ -97,9 +97,12 @@ Every phase follows its own skill's workflow, with these overrides:
    - *bus-factor*: write each gap into the most executable home its fix
      table names, creating the file when it is missing (C4 views go in
      `docs/architecture.md`, derived from compose, IaC, entry points and
-     client code). Never create AGENTS.md; optimization places content
-     last. Questions for people go to the audit, never answered by
-     guessing.
+     client code). Rituals and versions go into the repo's existing
+     runner and pin file; when there is none, record the gap in the audit
+     and leave creating one to optimization, so the pass never pins a
+     version twice or trips its own "commands in more than one home"
+     signal. Never create AGENTS.md; optimization places content last.
+     Questions for people go to the audit, never answered by guessing.
    - *consistency*: fix drift to the code's truth, delete dead code,
      commented-out code and finished TODOs, collapse duplicated facts to
      one home. Verify a numeric claim only in a file this phase already
@@ -112,8 +115,9 @@ Every phase follows its own skill's workflow, with these overrides:
      none does;
      fan-out only when the entry file is over budget. Its steps 5–7
      (runner, hooks, CI, guardrail checks) run when that skill's own
-     conditions hold and are skipped otherwise. With admin, run its
-     `github-settings.sh`; otherwise put the command under judgment calls.
+     conditions hold and are skipped otherwise. One exception to those
+     gates: with admin, run its `github-settings.sh` even when step 6 is
+     skipped; without admin, put the command under judgment calls.
 4. **Verify.** Run the checks and tests a final time; re-run the triage
    scan for before/after signal counts. Anything this turns up is fixed
    inside the owning phase's commit (`git commit --fixup` and an
