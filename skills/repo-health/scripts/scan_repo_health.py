@@ -63,6 +63,9 @@ DEPLOYABLE_GLOBS = ("docker-compose*.y*ml", "compose*.y*ml", "Dockerfile*", "**/
                     "template.y*ml", "samconfig.toml", "fly.toml", "render.yaml", "Procfile")
 
 
+NOT_THE_REPO = {".skill", ".skills", ".repo-health", "fixtures", "evals"}
+
+
 def load(name: str):
     path = SIBLINGS[name]
     if not path.is_file():
@@ -72,9 +75,10 @@ def load(name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    # The pass's own working files, and an installed copy of the family
-    # beside the repo, are not the repo: the siblings must not audit them.
-    module.SKIP_DIRS |= {".skill", ".skills", ".repo-health"}
+    # The pass's own working files, an installed copy of the family beside
+    # the repo, and test fixtures and eval material (deliberately flawed,
+    # or example content) are not the repo: the siblings must not audit them.
+    module.SKIP_DIRS |= NOT_THE_REPO
     return module
 
 
@@ -115,7 +119,7 @@ def bus_factor_signals(root: Path) -> tuple[list[str], list[str], dict]:
 
 def count_deployables(root: Path) -> int:
     """Compose services plus every other deployment descriptor found."""
-    skip = {".git", "node_modules", ".venv", "venv", ".skills", ".skill", ".evals", "vendor"}
+    skip = {".git", "node_modules", ".venv", "venv", ".evals", "vendor"} | NOT_THE_REPO
     found = 0
     for pattern in DEPLOYABLE_GLOBS:
         for path in root.glob(pattern):
@@ -131,7 +135,7 @@ def count_deployables(root: Path) -> int:
 
 
 def has_c4_view(root: Path) -> bool:
-    skip = {".git", "node_modules", ".venv", "venv", ".skills", ".skill", ".evals", "vendor"}
+    skip = {".git", "node_modules", ".venv", "venv", ".evals", "vendor"} | NOT_THE_REPO
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix not in {".md", ".mmd", ".mermaid", ".dsl", ".puml", ".plantuml"}:
             continue
