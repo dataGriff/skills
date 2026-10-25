@@ -191,7 +191,9 @@ When the step applies:
   languages the repo uses). It is the only place versions live.
 - `Taskfile.yml` absorbs every loose script and command. Migrate Makefile
   targets, package.json scripts, and README shell snippets into named tasks
-  with clear `desc:` lines. Use `namespace:action` naming.
+  with clear `desc:` lines. Use `namespace:action` naming. Deploy and
+  release scripts count: wrap them (`deploy: ./deploy.sh {{.CLI_ARGS}}`)
+  rather than leaving a script `task --list` cannot show.
 - In AGENTS.md, tell agents explicitly: run `task --list` first and reuse
   existing tasks; only add a task when nothing covers the need.
 - **Make the Taskfile reachable where agents actually run.** Sandboxes
@@ -201,7 +203,7 @@ When the step applies:
   `scripts/bootstrap.sh` (installs mise, or failing that the pinned `task`
   binary from its GitHub release), wire it into a Claude Code
   `SessionStart` hook, and name it in AGENTS.md as the one script that is
-  run directly.
+  run directly. It ships with the Taskfile, not as a later extra.
 
 Task design patterns, the bootstrap script, and hook wiring: read
 [references/tooling.md](references/tooling.md) if you need more than the
@@ -228,6 +230,11 @@ contributors cannot run locally.
   a thin wrapper that lost the deploy job is a broken release pipeline,
   and the fixture-sized workflow the pattern above describes is the
   exception, not the rule.
+- **Wrap it even when you cannot watch a run.** Running `task ci` locally
+  is the check that the swapped step runs the same commands; say in the
+  PR that the first Actions run confirms the wiring. Deferring the swap
+  leaves CI and contributors running different things, the drift this
+  step exists to remove.
 - **Make the host enforce it.** A `task ci` that CI runs but nothing
   requires is advisory: a direct push to `main` or a merge with a red
   check lands anyway. When the repo is on GitHub, run the bundled
