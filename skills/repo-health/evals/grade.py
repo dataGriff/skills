@@ -77,10 +77,11 @@ def contract_checks(out: Path, restored: int, min_commits: int, max_commits: int
         E(f"{min_commits}-{max_commits} new commits, one per phase, chore(<phase>): subjects",
           min_commits <= len(subjects) <= max_commits and len(scopes) == len(subjects)
           and len(set(scopes)) == len(scopes), subjects),
-        E("No audit file at the repo root (BUS-FACTOR.md, DECLUTTER-AUDIT.md, NOTES.md)",
-          not (tracked & ROOT_AUDITS) and not any((out / n).exists() for n in ROOT_AUDITS),
-          sorted(tracked & ROOT_AUDITS)),
-        E("PR body saved at .git/repo-health/PR.md", bool(body.strip()), len(body)),
+        E("No audit file at the repo root (BUS-FACTOR.md, DECLUTTER-AUDIT.md, NOTES.md, repo-health/)",
+          not any(t.split("/")[0] in ROOT_AUDITS for t in tracked)
+          and not any((out / n).exists() for n in ROOT_AUDITS), sorted(tracked & ROOT_AUDITS)),
+        E("PR body saved at .repo-health/PR.md and the directory is untracked",
+          bool(body.strip()) and not any(t.startswith(".repo-health/") for t in tracked), len(body)),
         E("PR body names every phase and has a judgment-calls section",
           all(p.replace("-", " ") in low or p in low for p in PHASES) and "judgment" in low, ""),
     ]
