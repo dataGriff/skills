@@ -33,7 +33,9 @@ when to run them.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -45,7 +47,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 EVAL_ROOT = REPO_ROOT / ".evals"
-RUN_TIMEOUT_SECONDS = 900
+RUN_TIMEOUT_SECONDS = 1200  # an umbrella skill loads four SKILL.md files; 900 was a near miss
 DOWNSTREAM_WORKERS = 4
 DOWNSTREAM_STATES = ("before", "after-baseline", "after-skill")
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
@@ -101,18 +103,28 @@ def run_claude(
         cmd += ["--add-dir", str(add_dir)]
     cmd += ["--allowedTools", *sorted(WRITE_TOOLS), *(allowed_tools or [])]
     start = time.time()
-    result = subprocess.run(
-        cmd,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        timeout=RUN_TIMEOUT_SECONDS,
-    )
+    # Own process group: on timeout the CLI's children (shell tools, MCP
+    # servers) must die with it, or they hold the output pipe open and
+    # communicate() blocks for good. The timeout is monotonic, so a laptop
+    # that sleeps mid-arm pauses the clock along with the arm; the task
+    # keeps the machine awake for the run.
+    proc = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, start_new_session=True)
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(timeout=RUN_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        os.killpg(proc.pid, signal.SIGKILL)
+        stdout, stderr = proc.communicate()
+    result = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
     info = {
         "exit_code": result.returncode,
         "duration_seconds": round(time.time() - start, 1),
         "stderr_tail": result.stderr[-1000:],
     }
+    if timed_out:
+        info["timed_out"] = True
     try:  # headless JSON output carries usage/cost metadata
         if stream:
             payload, tool_calls = None, []
@@ -202,7 +214,7 @@ def run_downstream(
             # The arm's own artefacts (.skill copy, NOTES.md) are not part
             # of the repo a later agent would see.
             shutil.copytree(src, work, dirs_exist_ok=True,
-                            ignore=shutil.ignore_patterns(".skill", "NOTES.md"))
+                            ignore=shutil.ignore_patterns(".skill", ".skills", "NOTES.md"))
         info = run_claude(DOWNSTREAM_PROMPT.format(prompt=task["prompt"]), work,
                           model, None, allowed_tools, stream=True)
         final = eval_dir / rel / "outputs"
@@ -257,6 +269,9 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
     evals_file = skill_dir / "evals" / "evals.json"
     spec = json.loads(evals_file.read_text(encoding="utf-8"))
     allowed_tools = spec.get("allowed_tools") or []
+    # An umbrella skill loads its neighbours by path from the directory
+    # beside its own, so its arm gets the whole family under .skills/.
+    siblings = spec.get("sibling_skills") or []
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     iteration = EVAL_ROOT / skill_dir.name / stamp
     fixtures = skill_dir / "evals" / "fixtures"
@@ -281,24 +296,27 @@ def run_skill_evals(skill_dir: Path, model: str | None = None) -> Path | None:
             # on remote runners), so the with_skill arm gets a local copy of
             # the skill rather than a path it may not be allowed to read.
             # evals/ is excluded so the arm can't see its own grader.
-            eval_skill_dir = outputs / ".skill"
+            family_dir = outputs / ".skills" if siblings else None
+            eval_skill_dir = family_dir / skill_dir.name if siblings else outputs / ".skill"
             if arm == "with_skill":
-                shutil.copytree(
-                    skill_dir, eval_skill_dir, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("evals"),
-                )
+                for name in [skill_dir.name, *siblings]:
+                    shutil.copytree(
+                        SKILLS_DIR / name, eval_skill_dir.parent / name if siblings else eval_skill_dir,
+                        dirs_exist_ok=True, ignore=shutil.ignore_patterns("evals"),
+                    )
             prompt = template.format(
                 skill_dir=eval_skill_dir, prompt=ev["prompt"], skills_dir=SKILLS_DIR
             )
             # Grant read access to the copy the prompt names, not the real
             # skill dir — that would re-expose evals/ (the grader).
-            add_dir = eval_skill_dir if arm == "with_skill" else None
+            add_dir = (family_dir or eval_skill_dir) if arm == "with_skill" else None
             print(f"  {eval_dir.name}/{arm} ... ", end="", flush=True)
             info = run_claude(prompt, outputs, model, add_dir, allowed_tools)
             final_outputs.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(outputs), str(final_outputs))
             (eval_dir / arm / "run.json").write_text(json.dumps(info, indent=2))
-            print(f"done in {info['duration_seconds']}s (exit {info['exit_code']})")
+            print(f"done in {info['duration_seconds']}s (exit {info['exit_code']}"
+                  f"{', timed out' if info.get('timed_out') else ''})")
         run_downstream(ev, eval_dir, fixtures, scratch, model, allowed_tools,
                        int(spec.get("downstream_repeats", 1)))
     shutil.rmtree(scratch, ignore_errors=True)

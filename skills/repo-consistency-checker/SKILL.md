@@ -193,6 +193,8 @@ inconsistency nobody forgives.
   deploy only one person can run): the `bus-factor` skill.
 - Text that is true but verbose, or history kept in docs: `repo-declutter`.
 - Where docs live and what agents load first: `repo-optimization`.
+- For all four questions at once, `repo-health` runs this skill with its
+  neighbours and owns the branch, commits, audit location and PR.
 
 ## References
 

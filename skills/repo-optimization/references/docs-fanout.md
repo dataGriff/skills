@@ -47,7 +47,9 @@ AGENTS.md or docs/. No conventions, no architecture.
 1. Ground rules every task obeys: reuse the Taskfile, run the checks, the
    never-do list.
 2. The command surface: the tasks a typical change runs, one line each.
-3. Where things live: an annotated layout tree.
+3. Where things live: an annotated layout tree. The C4 context and
+   container views stay in `docs/architecture.md`, routed ("before you add
+   a service, integration or data store, read docs/architecture.md").
 4. Conventions most changes touch: naming, tests, commits, branches.
 5. Gotchas: what agents get wrong here.
 6. Routes to the docs holding the rest, plus a catch-all route to the

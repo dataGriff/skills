@@ -116,10 +116,10 @@ trying the work.
 
 | Stage | A newcomer must be able to answer from the repo |
 |---|---|
-| purpose | what this is, who uses it, what is out of scope |
+| purpose | what this is, who uses it, what is out of scope, and which systems it talks to (a C4 context view) |
 | setup | toolchain and versions, dependencies, how to get config and secrets access |
 | build and test | one command each, and what green looks like |
-| change | where things live, conventions (branching, commits, style) and how they are enforced, how review works |
+| change | where things live and how the containers fit (a C4 container view), conventions (branching, commits, style) and how they are enforced, how review works |
 | release | how a change reaches users, who can do it, how to roll back |
 | operate | config per environment, where secrets live, logs and alerts, known failure modes and their fix |
 | ownership | who owns each area and how to reach them, as a role or team where possible |
@@ -147,6 +147,8 @@ vendor contacts, calendars).
 - Where docs live and what agents load: `repo-optimization`. Run this
   skill first to find what is missing, that one to place it cheaply.
 - Generated, vendored or third-party code: its knowledge lives upstream.
+- For all four questions at once, `repo-health` runs this skill with its
+  neighbours and owns the branch, commits, audit location and PR.
 
 ## References
 
