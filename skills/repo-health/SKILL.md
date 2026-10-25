@@ -83,7 +83,7 @@ Every phase follows its own skill's workflow, with these overrides:
 
    | Phase | Runs when the repo shows |
    |---|---|
-   | bus-factor | env vars read in code but documented nowhere; pointers to a person, chat, wiki or personal path; no pin file or documented setup; a path with one holder |
+   | bus-factor | env vars read in code but documented nowhere; pointers to a person, chat, wiki or personal path; no pin file or documented setup; a path with one holder; more than one deployable and no C4 view of them |
    | consistency | a broken reference or undefined command; a duplicated paragraph; an orphan doc; commented-out code; TODO/FIXME markers |
    | declutter | docs carrying history or hedged prose; files with banners, attributions or dense comments |
    | optimization | no auto-loading entry file, or one over budget; a doc nothing routes to; commands in more than one home; no CI |
@@ -95,8 +95,11 @@ Every phase follows its own skill's workflow, with these overrides:
    and the contract above. Run the repo's checks once at the end of the
    phase, then commit, writing the counts into the message last.
    - *bus-factor*: write knowledge into docs that exist; do not create
-     AGENTS.md or `docs/` (optimization places content last). Questions
-     for people go to the audit, never answered by guessing.
+     AGENTS.md (optimization places content last). The one file it may
+     create is `docs/architecture.md` with Mermaid C4 context and
+     container views derived from compose, IaC, entry points and client
+     code. Questions for people go to the audit, never answered by
+     guessing.
    - *consistency*: fix drift to the code's truth, delete dead code,
      commented-out code and finished TODOs, collapse duplicated facts to
      one home. Verify a numeric claim only in a file this phase already
@@ -134,6 +137,7 @@ do not look for it again.
 | broken links, orphan docs | consistency | optimization adds routes; it does not re-check links |
 | missing setup, deploy or "why" knowledge | bus-factor, into existing docs | optimization places and budgets it last |
 | env vars and their sources | bus-factor, in `.env.example` | consistency keeps docs pointing at it, never a second table |
+| system shape (C4 context and container views) | bus-factor, in `docs/architecture.md` | consistency checks every box against a deployable or client; optimization routes to it |
 | README and AGENTS.md | content edits in phases 1–3 | shrinking, placement and the `@AGENTS.md` include in phase 4 |
 | numeric claims | consistency, only alongside another signal | listed as "verify" in the PR otherwise |
 

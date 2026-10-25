@@ -110,10 +110,16 @@ platforms the repo no longer supports.
 
 **Claim:** "the API layer calls the service layer, never the repo
 directly", "X publishes events consumed by Y", a diagram, a component list.
+A C4 view (Mermaid `C4Context`/`C4Container`, Structurizr DSL) is a set of
+such claims: every `System`, `Container` and `Rel` is one.
 
 **Verify:** imports and call sites (`grep -r "from .repo import"` inside
 the API package), the presence of every component the diagram names, and
-the absence of paths the text forbids.
+the absence of paths the text forbids. For a C4 view: each container maps
+to a deployable (compose service, Dockerfile, IaC resource, entry point),
+each external system to a client, SDK or configured endpoint, and each
+relationship to a call site or subscription; a container with no
+deployable behind it, or a deployable with no box, is drift.
 
 **Traps:** aspirational architecture docs — if the doc is explicitly a
 target state, it is not drift, but it should say so.

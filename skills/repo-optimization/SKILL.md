@@ -106,7 +106,9 @@ priority order and stop when the budget is reached:
    first), run the checks before committing, the never-do list.
 2. **The command surface**: the tasks a typical change runs (setup, test,
    lint, check, ci), one line each, with the flags that matter.
-3. **Where things live**: an annotated layout tree.
+3. **Where things live**: an annotated layout tree. The system's shape
+   (C4 context and container views, Mermaid) belongs in
+   `docs/architecture.md` behind a route, not here.
 4. **Conventions most changes touch**: naming, testing, commits, branches.
 5. **Gotchas**: what agents get wrong in this repo, and what never to do.
 6. **Routes** to the docs that hold the rest (step 4 says how to word them).

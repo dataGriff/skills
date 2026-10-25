@@ -53,6 +53,14 @@ ENTRY_FILES = ("AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md")
 RUNNER_FILES = ("Makefile", "Taskfile.yml", "Taskfile.yaml", "Justfile", "justfile")
 CI_GLOBS = (".github/workflows/*.yml", ".github/workflows/*.yaml", ".gitlab-ci.yml",
             ".circleci/config.yml", "azure-pipelines.yml", "bitbucket-pipelines.yml")
+# A system of more than one deployable should carry C4 context and
+# container views an agent can read (Mermaid or Structurizr), see the
+# bus-factor skill's knowledge areas.
+C4_MARKERS = re.compile(r"C4Context|C4Container|C4Component|^\s*workspace\s*\{|!include\s*<C4", re.M)
+DEPLOYABLE_GLOBS = ("docker-compose*.y*ml", "compose*.y*ml", "Dockerfile*", "**/Dockerfile", "*.tf", "infra/**/*.tf",
+                    "terraform/**/*.tf", "k8s/**/*.y*ml", "kubernetes/**/*.y*ml", "helm/**/Chart.yaml",
+                    "serverless.y*ml", "wrangler.toml", "wrangler.json*", "cdk.json", "Pulumi.yaml",
+                    "template.y*ml", "samconfig.toml", "fly.toml", "render.yaml", "Procfile")
 
 
 def load(name: str):
@@ -90,6 +98,9 @@ def bus_factor_signals(root: Path) -> tuple[list[str], list[str], dict]:
     missing = [k for k, v in result["presence"].items() if v == "MISSING"]
     if missing:
         notes.append(f"absent: {', '.join(missing)}")
+    deployables = count_deployables(root)
+    if deployables > 1 and not has_c4_view(root):
+        signals.append(f"{deployables} deployable(s) and no C4 context/container view")
     c = result["concentration"]
     if c and c["authors"] > 1:
         held = [d for d in c["dirs"] if d["bus_factor"] == 1 and d["commits"] >= CONCENTRATION_MIN_COMMITS]
@@ -97,6 +108,35 @@ def bus_factor_signals(root: Path) -> tuple[list[str], list[str], dict]:
             signals.append(f"{len(held)} path(s) held by one author: "
                            + ", ".join(f"{d['path']} ({d['holders'][0]})" for d in held[:3]))
     return signals, notes, result
+
+
+def count_deployables(root: Path) -> int:
+    """Compose services plus every other deployment descriptor found."""
+    skip = {".git", "node_modules", ".venv", "venv", ".skills", ".skill", ".evals", "vendor"}
+    found = 0
+    for pattern in DEPLOYABLE_GLOBS:
+        for path in root.glob(pattern):
+            if any(part in skip for part in path.relative_to(root).parts) or not path.is_file():
+                continue
+            if path.name.startswith(("docker-compose", "compose")):
+                text = read(path)
+                m = re.search(r"^services:\s*\n((?:[ \t]+.*\n?)+)", text, re.M)
+                found += len(re.findall(r"^  [A-Za-z0-9_.-]+:\s*$", m.group(1), re.M)) if m else 1
+            else:
+                found += 1
+    return found
+
+
+def has_c4_view(root: Path) -> bool:
+    skip = {".git", "node_modules", ".venv", "venv", ".skills", ".skill", ".evals", "vendor"}
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix not in {".md", ".mmd", ".mermaid", ".dsl", ".puml", ".plantuml"}:
+            continue
+        if any(part in skip for part in path.relative_to(root).parts):
+            continue
+        if C4_MARKERS.search(read(path)):
+            return True
+    return False
 
 
 def consistency_signals(root: Path) -> tuple[list[str], list[str], dict]:
