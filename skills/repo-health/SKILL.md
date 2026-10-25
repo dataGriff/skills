@@ -39,10 +39,11 @@ Every phase follows its own skill's workflow, with these overrides:
   bullets with counts in the body. Not a commit per category: a reviewer
   reads one PR, not twelve commits.
 - **Audits are the PR body.** Each phase writes its audit as its own
-  section of `$(git rev-parse --git-dir)/repo-health/PR.md` (create the
-  directory in step 1), never `BUS-FACTOR.md` or `DECLUTTER-AUDIT.md` at
-  the root. Nothing lands at the repo root that is not the repo's own
-  content, and nothing is written twice.
+  section of `.repo-health/PR.md`, an untracked directory at the repo root
+  that ignores itself (step 1 creates it with a `.gitignore` containing
+  `*`; agents cannot write under `.git/`). Never `BUS-FACTOR.md` or
+  `DECLUTTER-AUDIT.md` at the root, and nothing is written twice. Once
+  the PR is open, delete the directory; the body lives in the PR.
 - **Mechanical fixes are applied; judgment calls are listed.** Mechanical:
   the sub-skill's fix table says what to write and the evidence is in the
   repo (drift to code truth, dead code, a broken link, an env var into
@@ -63,7 +64,7 @@ Every phase follows its own skill's workflow, with these overrides:
 ## Workflow
 
 1. **Baseline.** Confirm a clean tree and the default branch; create the
-   branch and the `repo-health/` directory under `.git/`. Run the repo's
+   branch and `.repo-health/` with its self-ignoring `.gitignore`. Run the repo's
    checks and tests once and record the result in the PR body: a red
    baseline is reported, not fixed, every phase keeps the failing set
    unchanged, and declutter then touches docs and comments only. Record
@@ -109,7 +110,7 @@ Every phase follows its own skill's workflow, with these overrides:
      `github-settings.sh`; otherwise put the command under judgment calls.
 4. **Verify.** Run the checks and tests a final time; re-run the triage
    scan for before/after signal counts.
-5. **Deliver.** The PR body is `.git/repo-health/PR.md`, in this order:
+5. **Deliver.** The PR body is `.repo-health/PR.md`, in this order:
    Summary (the triage table with ran/skipped and the commit per phase);
    Bus factor (stage walk before/after, Questions for maintainers);
    Consistency (severity table, coverage note); Declutter (findings,
@@ -119,7 +120,7 @@ Every phase follows its own skill's workflow, with these overrides:
    each, not a repeat of them); Checks (baseline and final). Open it with
    `gh pr create --draft --title "repo-health: <n> of 4 phases" --body-file`.
    When `gh` is unavailable, or the repo has no remote, leave the branch
-   and print that command in the reply.
+   and the file, and print that command in the reply.
 
 ## Who owns which finding
 
