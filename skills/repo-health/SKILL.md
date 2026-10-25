@@ -84,7 +84,7 @@ Every phase follows its own skill's workflow, with these overrides:
    | Phase | Runs when the repo shows |
    |---|---|
    | bus-factor | env vars read in code but documented nowhere; pointers to a person, chat, wiki or personal path; no pin file or documented setup; a path with one holder; more than one deployable and no C4 view of them |
-   | consistency | a broken reference or undefined command; a duplicated paragraph; an orphan doc; commented-out code; TODO/FIXME markers |
+   | consistency | a broken reference or undefined command; a duplicated paragraph; commented-out code; TODO/FIXME markers |
    | declutter | docs carrying history or hedged prose; files with banners, attributions or dense comments |
    | optimization | no auto-loading entry file, or one over budget; a doc nothing routes to; commands in more than one home; no CI |
 
@@ -106,8 +106,10 @@ Every phase follows its own skill's workflow, with these overrides:
      edits; otherwise list it as "verify" in the PR.
    - *declutter*: trim prose and comments that survive consistency;
      history goes into the commit body. Protected content stays.
-   - *optimization*: routes-only when an entry file exists and fits; a
-     minimal AGENTS.md (plus `CLAUDE.md` = `@AGENTS.md`) when none does;
+   - *optimization*: routes-only when an entry file exists and fits (a
+     route names its trigger and says "read"; "see" is a mention, not a
+     route); a minimal AGENTS.md (plus `CLAUDE.md` = `@AGENTS.md`) when
+     none does;
      fan-out only when the entry file is over budget. Runner, hooks, CI
      and guardrail scripts are proposals in the PR. With admin, run its
      `github-settings.sh`; otherwise put the command under judgment calls.
@@ -136,7 +138,8 @@ do not look for it again.
 |---|---|---|
 | commented-out code, finished or ownerless TODOs | consistency | declutter's comment category covers restating comments, banners, attributions only |
 | duplicated facts or paragraphs | consistency | declutter trims verbosity, never merges duplicates |
-| broken links, orphan docs | consistency | optimization adds routes; it does not re-check links |
+| broken links | consistency | optimization adds routes; it does not re-check links |
+| a doc nothing routes to | optimization, with a route | consistency deletes it only when its content is stale or already lives elsewhere |
 | missing setup, deploy or "why" knowledge | bus-factor, into existing docs | optimization places and budgets it last |
 | env vars and their sources | bus-factor, in `.env.example` | consistency keeps docs pointing at it, never a second table |
 | system shape (C4 context and container views) | bus-factor, in `docs/architecture.md` | consistency checks every box against a deployable or client; optimization routes to it |

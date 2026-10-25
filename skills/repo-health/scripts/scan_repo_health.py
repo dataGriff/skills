@@ -72,6 +72,9 @@ def load(name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # The pass's own working files, and an installed copy of the family
+    # beside the repo, are not the repo: the siblings must not audit them.
+    module.SKIP_DIRS |= {".skill", ".skills", ".repo-health"}
     return module
 
 
@@ -146,7 +149,7 @@ def consistency_signals(root: Path) -> tuple[list[str], list[str], dict]:
     signals, notes = [], []
     labels = {
         "broken_references": "broken reference(s)", "undefined_commands": "undefined command(s)",
-        "duplicate_paragraphs": "duplicated paragraph(s)", "orphan_docs": "orphan doc(s)",
+        "duplicate_paragraphs": "duplicated paragraph(s)",
         "commented_out_code": "run(s) of commented-out code", "markers": "TODO/FIXME marker(s)",
     }
     for kind, label in labels.items():
@@ -156,6 +159,9 @@ def consistency_signals(root: Path) -> tuple[list[str], list[str], dict]:
     numeric = len(scanner.findings.get("numeric_claims", []))
     if numeric:
         notes.append(f"{numeric} numeric claim(s) to verify by hand")
+    orphans = len(scanner.findings.get("orphan_docs", []))
+    if orphans:
+        notes.append(f"{orphans} orphan doc(s): optimization routes, or deletes if stale")
     return signals, notes, dict(scanner.findings)
 
 
