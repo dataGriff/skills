@@ -78,7 +78,8 @@ Every phase follows its own skill's workflow, with these overrides:
    Fill the table by hand from the signals below only when it cannot
    run. Its `--json` output carries every sibling
    scanner's leads, so the phases take their leads from it instead of
-   re-running their own scans. Signals are leads, and some are false
+   re-running their own scans; it skips `fixtures/` and `evals/`
+   directories, whose flaws are deliberate. Signals are leads, and some are false
    (a URL pattern read as a path); a phase that finds only noise commits
    nothing and says so. Override a verdict only with a reason that goes
    in the PR. All four skip: reply with the table, open nothing.
