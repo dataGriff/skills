@@ -192,8 +192,9 @@ When the step applies:
 - `Taskfile.yml` absorbs every loose script and command. Migrate Makefile
   targets, package.json scripts, and README shell snippets into named tasks
   with clear `desc:` lines. Use `namespace:action` naming. Deploy and
-  release scripts count: wrap them (`deploy: ./deploy.sh {{.CLI_ARGS}}`)
-  rather than leaving a script `task --list` cannot show.
+  release scripts count: wrap each in a task with a `desc:`, passing
+  arguments through `{{.CLI_ARGS}}`, rather than leaving a script
+  `task --list` cannot show.
 - In AGENTS.md, tell agents explicitly: run `task --list` first and reuse
   existing tasks; only add a task when nothing covers the need.
 - **Make the Taskfile reachable where agents actually run.** Sandboxes
