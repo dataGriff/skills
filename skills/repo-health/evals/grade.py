@@ -215,7 +215,7 @@ def grade_scattered(out: Path) -> list[dict]:
     ex.append(E("Versioned .githooks/pre-commit and pre-push delegate to task",
                 len(hooks) == 2 and all("task" in read(p) for p in hooks), [p.name for p in hooks]))
     wf = read(out / ".github" / "workflows" / "ci.yml")
-    leaked = [c for c in ("ruff check", "mypy orders", "npm run lint", "pytest tests/unit") if c in wf]
+    leaked = [c for c in ("ruff check", "mypy orders", "npm run lint", "npm test", "pytest tests/unit") if c in wf]
     ex.append(E("CI keeps its workflow and runs task ci via mise-action, no inline checks",
                 "task ci" in wf and "mise-action" in wf and not leaked, {"leaked": leaked}))
     boot = next((p for p in out.rglob("bootstrap*") if p.is_file() and ".skills" not in p.parts), None)
