@@ -5,7 +5,9 @@ Static checks over each arm's outputs plus the fixture's unit tests. Two
 questions: on a repo with all four problems, did the pass deliver one
 branch, one commit per phase and one PR body with every phase's outcome
 and the judgment calls; on a healthy repo, did it leave everything alone
-but the one missing route. Writes grading.json per arm.
+but the one missing route; on a repo with scattered commands, did the
+optimization phase add the runner, hooks and CI its own gates call for.
+Writes grading.json per arm.
 """
 import json
 import re
@@ -16,6 +18,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 UNHEALTHY = HERE / "fixtures" / "unhealthy"
 HEALTHY = HERE / "fixtures" / "healthy"
+SCATTERED = HERE / "fixtures" / "scattered"
 SKIP = {".skill", ".skills", ".git", "__pycache__", ".repo-health"}
 ENV_VARS = ["INVOICER_DB_URL", "PAYMENT_API_KEY", "INVOICER_TAX_RATE", "INVOICER_ENABLE_PDF"]
 PHASES = ("bus-factor", "consistency", "declutter", "optimization")
@@ -171,10 +174,14 @@ def grade_healthy(out: Path) -> list[dict]:
     after = read(out / "AGENTS.md").splitlines()
     added = [l for l in after if l not in before]
     removed = [l for l in before if l not in after]
-    ex.append(E("AGENTS.md gains at most 3 lines and loses none",
-                0 < len(added) <= 3 and not removed, {"added": added, "removed": removed}))
+    # A route may wrap, so a wrapped line counts once and the cue may sit
+    # on the line before the link.
+    route = " ".join(l.strip() for l in added if not l.lstrip().startswith("#"))
+    ex.append(E("AGENTS.md gains one route (at most 3 lines plus a heading) and loses none",
+                0 < len([l for l in added if not l.lstrip().startswith("#")]) <= 3
+                and len(added) <= 4 and not removed, {"added": added, "removed": removed}))
     ex.append(E("The added lines route to docs/releasing.md with a read cue",
-                any("releasing.md" in l and READ_CUE.search(l) for l in added), added))
+                bool(re.search(READ_CUE.pattern + r"[^.]*releasing\.md", route, re.I)), added))
     changed = [rel for rel, src in fixture.items() if rel != "AGENTS.md" and read(out / rel) != read(src)]
     ex.append(E("Every other fixture file is byte-identical (CI workflow included)", not changed, changed))
     extras = [str(p.relative_to(out)) for p in repo_files(out)
@@ -186,7 +193,42 @@ def grade_healthy(out: Path) -> list[dict]:
     return ex
 
 
-GRADERS = {"eval-0": grade_unhealthy, "eval-1": grade_healthy}
+def grade_scattered(out: Path) -> list[dict]:
+    ex = contract_checks(out, restored=1, min_commits=1, max_commits=4)
+    agents = read(out / "AGENTS.md")
+    ex.append(E("AGENTS.md exists within budget (<=150 lines, <=2000 tokens)",
+                agents and len(agents.splitlines()) <= 150 and len(agents) // 4 <= 2000,
+                f"lines={len(agents.splitlines())} tokens={len(agents) // 4}"))
+    ex.append(E("CLAUDE.md is exactly @AGENTS.md", read(out / "CLAUDE.md").strip() == "@AGENTS.md", ""))
+    taskfile = read(out / "Taskfile.yml")
+    commands = ["pytest tests/unit", "pytest tests/integration", "ruff check", "ruff format",
+                "mypy", "alembic upgrade", "vite", "eslint", "vitest", "deploy.sh"]
+    reachable = taskfile + read(out / "Makefile") + read(out / "package.json")
+    missing = [c for c in commands if c not in reachable]
+    ex.append(E("Taskfile.yml exists with a ci task and every command stays reachable",
+                bool(taskfile) and re.search(r"^\s{2}ci:", taskfile, re.M) is not None and not missing,
+                {"taskfile": bool(taskfile), "missing": missing}))
+    mise = read(out / "mise.toml")
+    pins = [t for t in ("task", "python", "node") if re.search(rf"^\s*\"?{t}\"?\s*=", mise, re.M)]
+    ex.append(E("mise.toml pins task, python and node", len(pins) == 3, pins))
+    hooks = [p for p in (out / ".githooks" / "pre-commit", out / ".githooks" / "pre-push") if p.is_file()]
+    ex.append(E("Versioned .githooks/pre-commit and pre-push delegate to task",
+                len(hooks) == 2 and all("task" in read(p) for p in hooks), [p.name for p in hooks]))
+    wf = read(out / ".github" / "workflows" / "ci.yml")
+    leaked = [c for c in ("ruff check", "mypy orders", "npm run lint", "pytest tests/unit") if c in wf]
+    ex.append(E("CI keeps its workflow and runs task ci via mise-action, no inline checks",
+                "task ci" in wf and "mise-action" in wf and not leaked, {"leaked": leaked}))
+    boot = next((p for p in out.rglob("bootstrap*") if p.is_file() and ".skills" not in p.parts), None)
+    ex.append(E("A bootstrap exists and AGENTS.md names it",
+                boot is not None and "bootstrap" in agents.lower(), str(boot)))
+    ex.append(E("The prod DEPLOY_TOKEN guard survives in deploy.sh",
+                "DEPLOY_TOKEN" in read(out / "deploy.sh"), ""))
+    ex.append(E("PR body lists github-settings as a judgment call",
+                "github-settings" in pr_body(out) or "setup:github" in pr_body(out), ""))
+    return ex
+
+
+GRADERS = {"eval-0": grade_unhealthy, "eval-1": grade_healthy, "eval-2": grade_scattered}
 
 
 def write_grading(target: Path, expectations: list[dict]) -> int:

@@ -1,0 +1,15 @@
+{
+  "name": "orders-admin",
+  "private": true,
+  "scripts": {
+    "dev": "vite --config admin/vite.config.ts",
+    "build": "vite build --config admin/vite.config.ts",
+    "lint": "eslint admin/src --ext .ts,.tsx",
+    "test": "vitest run --dir admin/src"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
