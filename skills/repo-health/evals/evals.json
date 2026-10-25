@@ -36,7 +36,7 @@
     {
       "id": 1,
       "name": "healthy-repo-restraint",
-      "prompt": "This is a snapshot of our payments-gateway repo. Run `git init -b main` and commit the snapshot first (pass -c user.name=eval -c user.email=eval@example.com to git if it has no identity). Then run a full repo-health pass and change whatever the repo actually needs, on a branch, committing as you go. Nothing may be lost and CI must keep doing everything it does today. There is no remote and no gh, so save the pull request body you would open to .repo-health/PR.md. Do not run or install anything beyond git and do not ask questions.",
+      "prompt": "This is a snapshot of our payments-gateway repo. Run `git init -b main` and commit the snapshot first (pass -c user.name=eval -c user.email=eval@example.com to git if it has no identity). Then run a full repo-health pass and change whatever the repo actually needs, on a branch, committing as you go. Nothing may be lost and CI must keep doing everything it does today. There is no remote and no gh, so save the pull request body you would open to .repo-health/PR.md. Do not install anything, run nothing beyond git and python3, and do not ask questions.",
       "expected_output": "Restraint: AGENTS.md already auto-loads, fits and is followed; commands have one home (the Makefile with make help); CI is real. The only change is one explicit route in AGENTS.md to docs/releasing.md, in a single chore(optimization) commit; every other file is byte-identical, no Taskfile, mise.toml, hooks or bootstrap appear, no root audit files, and the PR body marks bus-factor, consistency and declutter as skipped with the triage signals.",
       "files": [
         "healthy/AGENTS.md",

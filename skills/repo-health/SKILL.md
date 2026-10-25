@@ -71,10 +71,12 @@ Every phase follows its own skill's workflow, with these overrides:
    `gh` capability once: `gh auth status` fails for any reason → none;
    otherwise `gh api repos/{owner}/{repo} --jq .permissions.admin` → admin
    or write.
-2. **Triage.** When the repo has git history or more than a handful of
-   files, run `python3 <this skill's dir>/scripts/scan_repo_health.py <repo>`
-   and take its table as the plan; for a tiny repo, fill the table by
-   hand from the signals below. Its `--json` output carries every sibling
+2. **Triage.** When `python3` is available, run
+   `python3 <this skill's dir>/scripts/scan_repo_health.py <repo>` and
+   take its table as the plan, however small the repo: a hand triage
+   skips the checks it does not think of, the unrouted doc above all.
+   Fill the table by hand from the signals below only when it cannot
+   run. Its `--json` output carries every sibling
    scanner's leads, so the phases take their leads from it instead of
    re-running their own scans. Signals are leads, and some are false
    (a URL pattern read as a path); a phase that finds only noise commits

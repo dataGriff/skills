@@ -25,7 +25,7 @@ PSP. This file is what agents load first; keep it current.
 | `make lint`       | golangci-lint with the repo config               |
 | `make ci`         | lint + test — what CI runs                       |
 | `make proto`      | regenerate `gen/` from `proto/`                  |
-| `make migrate`    | apply SQL migrations in `migrations/`            |
+| `make migrate`    | apply `migrations/` to `$DATABASE_URL`           |
 | `make run`        | start on :8080 against docker-compose services   |
 
 ## Layout
