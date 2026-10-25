@@ -112,7 +112,9 @@ Every phase follows its own skill's workflow, with these overrides:
      and guardrail scripts are proposals in the PR. With admin, run its
      `github-settings.sh`; otherwise put the command under judgment calls.
 4. **Verify.** Run the checks and tests a final time; re-run the triage
-   scan for before/after signal counts.
+   scan for before/after signal counts. Anything this turns up is fixed
+   inside the owning phase's commit (`git commit --fixup` and an
+   autosquash rebase; the branch is unpushed), never as a fifth commit.
 5. **Deliver.** The PR body is `.repo-health/PR.md`, in this order:
    Summary (the triage table with ran/skipped and the commit per phase);
    Bus factor (stage walk before/after, Questions for maintainers);
