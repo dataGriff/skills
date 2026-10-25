@@ -20,6 +20,11 @@ tasks:
       - task: hooks:install
       - echo "Setup complete. Run 'task --list' to see available commands."
 
+  setup:github:
+    desc: "One-time: squash-only merges, delete head branches, PR + CI required on main (via gh): task setup:github [REPO=owner/name] [CHECKS=ci]"
+    cmds:
+      - "scripts/github-settings.sh{{if .REPO}} --repo {{.REPO}}{{end}} --checks {{.CHECKS | default \"ci\"}}"
+
   hooks:install:
     desc: Point git at the versioned hooks in .githooks/
     cmds:

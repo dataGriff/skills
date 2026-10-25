@@ -7,11 +7,14 @@ description: >-
   routes and stop), build an AGENTS.md (CLAUDE.md = @AGENTS.md) carrying
   what most tasks need when nothing auto-loads, fan out to docs/ only when
   the entry file is over budget, centralise commands in a Taskfile only
-  when they are scattered, and add mise pins, hooks, CI and budget checks
-  where they earn their keep. Use when asked to make a repo agent-ready,
-  AI-friendly, or optimised for Claude/AI agents, to set up or slim
-  AGENTS.md or CLAUDE.md, to decide what belongs in AGENTS.md versus
-  docs/, or to centralise scripts in a Taskfile.
+  when they are scattered, add mise pins, hooks, CI and budget checks
+  where they earn their keep, and make GitHub enforce the result: a
+  default-branch ruleset requiring a pull request and green CI, squash-only
+  merges, head branches deleted on merge. Use when asked to make a repo
+  agent-ready, AI-friendly, or optimised for Claude/AI agents, to set up or
+  slim AGENTS.md or CLAUDE.md, to decide what belongs in AGENTS.md versus
+  docs/, to centralise scripts in a Taskfile, or to set up branch
+  protection, rulesets, required PRs or merge settings on a GitHub repo.
 ---
 
 # Repo optimization for AI agents
@@ -223,6 +226,17 @@ contributors cannot run locally.
   a thin wrapper that lost the deploy job is a broken release pipeline,
   and the fixture-sized workflow the pattern above describes is the
   exception, not the rule.
+- **Make the host enforce it.** A `task ci` that CI runs but nothing
+  requires is advisory: a direct push to `main` or a merge with a red
+  check lands anyway. When the repo is on GitHub, run the bundled
+  `scripts/github-settings.sh` (copy or symlink it beside the bootstrap
+  and wrap it in a `setup:github` task) to set squash-only merges, delete
+  head branches on merge, and a ruleset on the default branch that
+  requires a pull request with the CI job green and blocks force pushes
+  and deletions. Read
+  [references/github-settings.md](references/github-settings.md) when
+  you need the reasoning per setting, more than one required check,
+  reviewers, or an org-owned repo.
 
 ### 7. Add automated guardrail checks
 
@@ -262,6 +276,8 @@ file alone:
 - Does a typical task need **zero** extra reads, and a specialised one at
   most one (direct route) or two (via the index)?
 - Is every route a conditional imperative with its trigger stated?
+- Does the host require `task ci` green and a pull request before
+  anything reaches the default branch, or is CI still advisory?
 - Would a typical task have been cheaper in the original? If the original
   entry file auto-loaded and the after-state needs more reads or turns,
   the restructure was the wrong outcome: revert to the routes-only
@@ -290,3 +306,6 @@ but wordy, `repo-declutter`.
   patterns, migrating existing scripts, sandbox bootstrap, hook wiring.
 - [references/checks.md](references/checks.md) — guardrail check design,
   cold-start report, routing checks, reusable script skeletons.
+- [references/github-settings.md](references/github-settings.md) — the
+  merge settings and default-branch ruleset that make GitHub enforce
+  `task ci`, the bundled script that applies them, verification, caveats.

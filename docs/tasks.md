@@ -38,6 +38,8 @@ Only when nothing existing covers the need:
 `task --list` is authoritative; the important chains are:
 
 - `setup` → `hooks:install`
+- `setup:github` → GitHub merge settings and the `main` ruleset, through the
+  repo-optimization skill's bundled script (needs `gh` with admin rights)
 - `check` → `check:skills` + `check:context`
 - `eval:skills` → with/without-skill effectiveness evals (on demand, not CI;
   `MODEL=` pins both arms to one model for a reproducible comparison)

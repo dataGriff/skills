@@ -26,6 +26,7 @@ doc only when its trigger in the Routes table fires.
 | Command                                      | Does                                                        |
 | -------------------------------------------- | ----------------------------------------------------------- |
 | `task setup`                                 | one-time: install the versioned git hooks                   |
+| `task setup:github`                          | one-time: squash-only, delete head branches, PR + CI required on `main` |
 | `task check`                                 | `check:skills` + `check:context` — what hooks and CI run    |
 | `task new:skill NAME=my-skill`               | scaffold `skills/my-skill/`                                 |
 | `task eval:skills NAME=x [MODEL=...]`        | with/without-skill evals via the `claude` CLI (not in CI)   |
