@@ -1,33 +1,33 @@
 # Eval results: repo-optimization
 
-Last run: 20260920-201340 UTC via `task eval:skills NAME=repo-optimization MODEL=claude-sonnet-5` (commit this file with the skill change so the PR carries the evidence).
+Last run: 20261025-214920 UTC via `task eval:skills NAME=repo-optimization MODEL=claude-sonnet-5` (commit this file with the skill change so the PR carries the evidence).
 
-Models served: claude-haiku-4-5-20251001, claude-sonnet-5.
+Models served: claude-sonnet-5.
 
 | Eval | With skill | Baseline | Turns (skill/base) | Time (skill/base) | Cost (skill/base) |
 |------|-----------|----------|--------------------|-------------------|-------------------|
-| small-python-repo-from-readme | 16/16 | 5/16 | 51 / 36 | 423.5s / 280.9s | $1.39 / $0.84 |
-| fat-claude-md-fits-budget | 10/10 | 8/10 | 12 / 11 | 86.8s / 124.0s | $0.31 / $0.33 |
-| already-good-repo-restraint | 10/10 | 8/10 | 11 / 9 | 80.1s / 67.7s | $0.24 / $0.18 |
+| small-python-repo-from-readme | 16/16 | 15/16 | 36 / 51 | 382.5s / 372.3s | $1.01 / $1.23 |
+| fat-claude-md-fits-budget | 10/10 | 10/10 | 16 / 15 | 125.2s / 129.2s | $0.43 / $0.45 |
+| already-good-repo-restraint | 10/10 | 9/10 | 18 / 15 | 122.9s / 106.1s | $0.42 / $0.36 |
 
-Grader checks that separated the arms: small-python-repo-from-readme 11/16, fat-claude-md-fits-budget 2/10, already-good-repo-restraint 2/10. A check both arms always pass measures nothing; a score delta with none separating is noise.
-Token cost, with skill / baseline: 1.50x. Turns above the baseline usually mean SKILL.md loads bundled files unconditionally.
+Grader checks that separated the arms: small-python-repo-from-readme 1/16, fat-claude-md-fits-budget 0/10, already-good-repo-restraint 1/10. A check both arms always pass measures nothing; a score delta with none separating is noise.
+Token cost, with skill / baseline: 0.64x. Turns above the baseline usually mean SKILL.md loads bundled files unconditionally.
 
 Downstream tasks - the same follow-up jobs run in the fixture repo before the restructure, after the baseline arm's restructure, and after the skill arm's (means per run; adherence = grader checks the answers passed). This is the cost the skill is meant to reduce: what a later agent pays to orient and whether it follows the repo's rules.
 
 | Eval | State | Runs | Adherence | Turns | Reads before first write | Tokens | Cost |
 |------|-------|------|-----------|-------|--------------------------|--------|------|
-| small-python-repo-from-readme | before | 12 | 27/27 | 7.0 | 4.6 | 192,243 | $0.10 |
-| small-python-repo-from-readme | after-baseline | 12 | 27/27 | 7.3 | 4.0 | 256,946 | $0.13 |
-| small-python-repo-from-readme | after-skill | 12 | 27/27 | 4.1 | 1.8 | 173,332 | $0.10 |
-| fat-claude-md-fits-budget | before | 12 | 31/39 | 2.8 | 0.8 | 124,501 | $0.09 |
-| fat-claude-md-fits-budget | after-baseline | 12 | 39/39 | 4.6 | 2.4 | 181,029 | $0.10 |
-| fat-claude-md-fits-budget | after-skill | 12 | 39/39 | 3.0 | 0.8 | 135,787 | $0.09 |
-| already-good-repo-restraint | before | 6 | 21/21 | 4.3 | 2.3 | 126,981 | $0.07 |
-| already-good-repo-restraint | after-baseline | 6 | 21/21 | 4.5 | 2.5 | 126,735 | $0.07 |
-| already-good-repo-restraint | after-skill | 6 | 21/21 | 3.0 | 1.0 | 125,552 | $0.07 |
+| small-python-repo-from-readme | before | 12 | 27/27 | 6.9 | 4.7 | 221,058 | $0.16 |
+| small-python-repo-from-readme | after-baseline | 12 | 26/27 | 4.9 | 2.4 | 211,892 | $0.17 |
+| small-python-repo-from-readme | after-skill | 12 | 26/27 | 6.2 | 3.6 | 279,795 | $0.20 |
+| fat-claude-md-fits-budget | before | 12 | 35/39 | 3.0 | 1.0 | 130,900 | $0.14 |
+| fat-claude-md-fits-budget | after-baseline | 12 | 39/39 | 3.2 | 1.0 | 146,024 | $0.14 |
+| fat-claude-md-fits-budget | after-skill | 12 | 39/39 | 3.2 | 1.2 | 146,429 | $0.14 |
+| already-good-repo-restraint | before | 6 | 21/21 | 3.3 | 4.7 | 115,711 | $0.17 |
+| already-good-repo-restraint | after-baseline | 6 | 21/21 | 3.2 | 1.2 | 126,428 | $0.12 |
+| already-good-repo-restraint | after-skill | 6 | 21/21 | 2.5 | 0.5 | 104,768 | $0.12 |
 
-Full outputs (gitignored): `.evals/repo-optimization/20260920-201340/`.
+Full outputs (gitignored): `.evals/repo-optimization/20261025-214920/`.
 
 ## Notes: restraint fixture and CI wrap rule (2026-09-20, run 201340)
 
